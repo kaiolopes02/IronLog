@@ -1,0 +1,12 @@
+[
+  { "id": "horizontal-push" },
+  { "id": "vertical-push" },
+  { "id": "horizontal-pull" },
+  { "id": "vertical-pull" },
+  { "id": "squat" },
+  { "id": "hinge" },
+  { "id": "lunge" },
+  { "id": "isolation" },
+  { "id": "carry" },
+  { "id": "core" }
+]

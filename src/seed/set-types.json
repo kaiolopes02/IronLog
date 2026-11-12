@@ -1,0 +1,8 @@
+[
+  { "id": "warmup", "isWarmup": true, "countsForVolume": false, "countsForPR": false },
+  { "id": "feeder", "isWarmup": true, "countsForVolume": false, "countsForPR": false },
+  { "id": "working", "isWarmup": false, "countsForVolume": true, "countsForPR": true },
+  { "id": "drop", "isWarmup": false, "countsForVolume": true, "countsForPR": true },
+  { "id": "rest-pause", "isWarmup": false, "countsForVolume": true, "countsForPR": true },
+  { "id": "failure", "isWarmup": false, "countsForVolume": true, "countsForPR": true }
+]

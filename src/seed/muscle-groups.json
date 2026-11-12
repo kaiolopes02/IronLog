@@ -1,0 +1,12 @@
+[
+  { "id": "chest", "sort": 1, "defaultRestSec": 120 },
+  { "id": "back", "sort": 2, "defaultRestSec": 120 },
+  { "id": "shoulders", "sort": 3, "defaultRestSec": 90 },
+  { "id": "biceps", "sort": 4, "defaultRestSec": 75 },
+  { "id": "triceps", "sort": 5, "defaultRestSec": 75 },
+  { "id": "quads", "sort": 6, "defaultRestSec": 150 },
+  { "id": "hamstrings", "sort": 7, "defaultRestSec": 120 },
+  { "id": "glutes", "sort": 8, "defaultRestSec": 120 },
+  { "id": "calves", "sort": 9, "defaultRestSec": 60 },
+  { "id": "core", "sort": 10, "defaultRestSec": 60 }
+]

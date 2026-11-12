@@ -1,0 +1,44 @@
+{
+  "name": "ironlog",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "IronLog — treinos de musculação 100% offline, sem backend e sem telemetria",
+  "scripts": {
+    "dev": "vite --port 5173 --strictPort",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.node.json && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "icons": "node scripts/gen-icons.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "verify": "npm run lint && npm run test && npm run build && npm run check:bundle"
+  },
+  "dependencies": {
+    "dexie": "^4.4.7",
+    "preact": "^11.2.0",
+    "uplot": "^1.6.32"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
+    "@preact/preset-vite": "^2.10.6",
+    "@testing-library/preact": "^3.2.6",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.1.0",
+    "autoprefixer": "^10.6.2",
+    "eslint": "^10.14.0",
+    "fake-indexeddb": "^6.2.8",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.5.32",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vite": "^8.3.8",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.1.0"
+  }
+}

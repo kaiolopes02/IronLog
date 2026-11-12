@@ -1,0 +1,12 @@
+{
+  "defaultBarWeightKg": 20,
+  "defaultStock": [
+    { "id": "plate-25", "weightKg": 25, "pairs": 1 },
+    { "id": "plate-20", "weightKg": 20, "pairs": 1 },
+    { "id": "plate-15", "weightKg": 15, "pairs": 1 },
+    { "id": "plate-10", "weightKg": 10, "pairs": 2 },
+    { "id": "plate-5", "weightKg": 5, "pairs": 2 },
+    { "id": "plate-2.5", "weightKg": 2.5, "pairs": 2 },
+    { "id": "plate-1.25", "weightKg": 1.25, "pairs": 2 }
+  ]
+}

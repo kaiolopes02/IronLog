@@ -1,0 +1,10 @@
+[
+  { "id": "bodyweight", "unit": "kg" },
+  { "id": "body-fat", "unit": "%" },
+  { "id": "waist", "unit": "cm" },
+  { "id": "chest", "unit": "cm" },
+  { "id": "arm", "unit": "cm" },
+  { "id": "thigh", "unit": "cm" },
+  { "id": "hip", "unit": "cm" },
+  { "id": "neck", "unit": "cm" }
+]

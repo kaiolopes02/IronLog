@@ -1,0 +1,11 @@
+[
+  { "id": "barbell" },
+  { "id": "dumbbell" },
+  { "id": "machine" },
+  { "id": "cable" },
+  { "id": "bodyweight" },
+  { "id": "ez-bar" },
+  { "id": "kettlebell" },
+  { "id": "smith" },
+  { "id": "band" }
+]

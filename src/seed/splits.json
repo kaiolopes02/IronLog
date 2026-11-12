@@ -1,0 +1,7 @@
+[
+  { "id": "abc", "dayCount": 3 },
+  { "id": "abcd", "dayCount": 4 },
+  { "id": "upper-lower", "dayCount": 2 },
+  { "id": "full-body", "dayCount": 3 },
+  { "id": "ppl", "dayCount": 3 }
+]

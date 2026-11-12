@@ -1,0 +1,66 @@
+[
+  { "id": "bb-bench", "muscleGroupId": "chest", "secondaryMuscleIds": ["triceps", "shoulders"], "equipmentId": "barbell", "movementPatternId": "horizontal-push", "defaultRestSec": 150, "incrementKg": 2.5 },
+  { "id": "db-bench", "muscleGroupId": "chest", "secondaryMuscleIds": ["triceps"], "equipmentId": "dumbbell", "movementPatternId": "horizontal-push", "defaultRestSec": 120, "incrementKg": 2 },
+  { "id": "incline-bb-bench", "muscleGroupId": "chest", "secondaryMuscleIds": ["shoulders", "triceps"], "equipmentId": "barbell", "movementPatternId": "horizontal-push", "defaultRestSec": 150, "incrementKg": 2.5 },
+  { "id": "db-fly", "muscleGroupId": "chest", "secondaryMuscleIds": [], "equipmentId": "dumbbell", "movementPatternId": "isolation", "defaultRestSec": 75, "incrementKg": 2 },
+  { "id": "cable-crossover", "muscleGroupId": "chest", "secondaryMuscleIds": [], "equipmentId": "cable", "movementPatternId": "isolation", "defaultRestSec": 75, "incrementKg": 2.5 },
+  { "id": "push-up", "muscleGroupId": "chest", "secondaryMuscleIds": ["triceps", "core"], "equipmentId": "bodyweight", "movementPatternId": "horizontal-push", "defaultRestSec": 90, "incrementKg": 1 },
+  { "id": "machine-chest-press", "muscleGroupId": "chest", "secondaryMuscleIds": ["triceps"], "equipmentId": "machine", "movementPatternId": "horizontal-push", "defaultRestSec": 120, "incrementKg": 5 },
+  { "id": "dips", "muscleGroupId": "chest", "secondaryMuscleIds": ["triceps"], "equipmentId": "bodyweight", "movementPatternId": "vertical-push", "defaultRestSec": 120, "incrementKg": 2.5 },
+
+  { "id": "pull-up", "muscleGroupId": "back", "secondaryMuscleIds": ["biceps"], "equipmentId": "bodyweight", "movementPatternId": "vertical-pull", "defaultRestSec": 150, "incrementKg": 2.5 },
+  { "id": "lat-pulldown", "muscleGroupId": "back", "secondaryMuscleIds": ["biceps"], "equipmentId": "cable", "movementPatternId": "vertical-pull", "defaultRestSec": 120, "incrementKg": 5 },
+  { "id": "bb-row", "muscleGroupId": "back", "secondaryMuscleIds": ["biceps"], "equipmentId": "barbell", "movementPatternId": "horizontal-pull", "defaultRestSec": 150, "incrementKg": 2.5 },
+  { "id": "db-row", "muscleGroupId": "back", "secondaryMuscleIds": ["biceps"], "equipmentId": "dumbbell", "movementPatternId": "horizontal-pull", "defaultRestSec": 90, "incrementKg": 2 },
+  { "id": "seated-cable-row", "muscleGroupId": "back", "secondaryMuscleIds": ["biceps"], "equipmentId": "cable", "movementPatternId": "horizontal-pull", "defaultRestSec": 120, "incrementKg": 5 },
+  { "id": "straight-arm-pulldown", "muscleGroupId": "back", "secondaryMuscleIds": [], "equipmentId": "cable", "movementPatternId": "isolation", "defaultRestSec": 75, "incrementKg": 2.5 },
+  { "id": "hyperextension", "muscleGroupId": "back", "secondaryMuscleIds": ["glutes", "hamstrings"], "equipmentId": "bodyweight", "movementPatternId": "hinge", "defaultRestSec": 90, "incrementKg": 2.5 },
+
+  { "id": "ohp", "muscleGroupId": "shoulders", "secondaryMuscleIds": ["triceps"], "equipmentId": "barbell", "movementPatternId": "vertical-push", "defaultRestSec": 150, "incrementKg": 2.5 },
+  { "id": "db-shoulder-press", "muscleGroupId": "shoulders", "secondaryMuscleIds": ["triceps"], "equipmentId": "dumbbell", "movementPatternId": "vertical-push", "defaultRestSec": 120, "incrementKg": 2 },
+  { "id": "lateral-raise", "muscleGroupId": "shoulders", "secondaryMuscleIds": [], "equipmentId": "dumbbell", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 1 },
+  { "id": "cable-lateral-raise", "muscleGroupId": "shoulders", "secondaryMuscleIds": [], "equipmentId": "cable", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 1.25 },
+  { "id": "rear-delt-fly", "muscleGroupId": "shoulders", "secondaryMuscleIds": ["back"], "equipmentId": "dumbbell", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 1 },
+  { "id": "face-pull", "muscleGroupId": "shoulders", "secondaryMuscleIds": ["back"], "equipmentId": "cable", "movementPatternId": "horizontal-pull", "defaultRestSec": 75, "incrementKg": 2.5 },
+  { "id": "upright-row", "muscleGroupId": "shoulders", "secondaryMuscleIds": ["back"], "equipmentId": "barbell", "movementPatternId": "vertical-pull", "defaultRestSec": 90, "incrementKg": 2.5 },
+
+  { "id": "bb-curl", "muscleGroupId": "biceps", "secondaryMuscleIds": [], "equipmentId": "barbell", "movementPatternId": "isolation", "defaultRestSec": 75, "incrementKg": 1.25 },
+  { "id": "db-curl", "muscleGroupId": "biceps", "secondaryMuscleIds": [], "equipmentId": "dumbbell", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 1 },
+  { "id": "hammer-curl", "muscleGroupId": "biceps", "secondaryMuscleIds": [], "equipmentId": "dumbbell", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 1 },
+  { "id": "cable-curl", "muscleGroupId": "biceps", "secondaryMuscleIds": [], "equipmentId": "cable", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 2.5 },
+  { "id": "preacher-curl", "muscleGroupId": "biceps", "secondaryMuscleIds": [], "equipmentId": "ez-bar", "movementPatternId": "isolation", "defaultRestSec": 75, "incrementKg": 2.5 },
+
+  { "id": "close-grip-bench", "muscleGroupId": "triceps", "secondaryMuscleIds": ["chest"], "equipmentId": "barbell", "movementPatternId": "horizontal-push", "defaultRestSec": 120, "incrementKg": 2.5 },
+  { "id": "triceps-pushdown", "muscleGroupId": "triceps", "secondaryMuscleIds": [], "equipmentId": "cable", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 2.5 },
+  { "id": "overhead-triceps-ext", "muscleGroupId": "triceps", "secondaryMuscleIds": [], "equipmentId": "dumbbell", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 1 },
+  { "id": "skull-crusher", "muscleGroupId": "triceps", "secondaryMuscleIds": [], "equipmentId": "ez-bar", "movementPatternId": "isolation", "defaultRestSec": 75, "incrementKg": 2.5 },
+  { "id": "bench-dip", "muscleGroupId": "triceps", "secondaryMuscleIds": [], "equipmentId": "bodyweight", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 2.5 },
+
+  { "id": "back-squat", "muscleGroupId": "quads", "secondaryMuscleIds": ["glutes", "core"], "equipmentId": "barbell", "movementPatternId": "squat", "defaultRestSec": 180, "incrementKg": 2.5 },
+  { "id": "front-squat", "muscleGroupId": "quads", "secondaryMuscleIds": ["glutes", "core"], "equipmentId": "barbell", "movementPatternId": "squat", "defaultRestSec": 180, "incrementKg": 2.5 },
+  { "id": "leg-press", "muscleGroupId": "quads", "secondaryMuscleIds": ["glutes"], "equipmentId": "machine", "movementPatternId": "squat", "defaultRestSec": 150, "incrementKg": 5 },
+  { "id": "hack-squat", "muscleGroupId": "quads", "secondaryMuscleIds": ["glutes"], "equipmentId": "machine", "movementPatternId": "squat", "defaultRestSec": 150, "incrementKg": 5 },
+  { "id": "leg-extension", "muscleGroupId": "quads", "secondaryMuscleIds": [], "equipmentId": "machine", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 5 },
+  { "id": "walking-lunge", "muscleGroupId": "quads", "secondaryMuscleIds": ["glutes", "hamstrings"], "equipmentId": "dumbbell", "movementPatternId": "lunge", "defaultRestSec": 120, "incrementKg": 2 },
+  { "id": "bulgarian-split-squat", "muscleGroupId": "quads", "secondaryMuscleIds": ["glutes"], "equipmentId": "dumbbell", "movementPatternId": "lunge", "defaultRestSec": 120, "incrementKg": 2 },
+
+  { "id": "deadlift", "muscleGroupId": "hamstrings", "secondaryMuscleIds": ["back", "glutes"], "equipmentId": "barbell", "movementPatternId": "hinge", "defaultRestSec": 180, "incrementKg": 2.5 },
+  { "id": "romanian-deadlift", "muscleGroupId": "hamstrings", "secondaryMuscleIds": ["glutes", "back"], "equipmentId": "barbell", "movementPatternId": "hinge", "defaultRestSec": 150, "incrementKg": 2.5 },
+  { "id": "leg-curl", "muscleGroupId": "hamstrings", "secondaryMuscleIds": [], "equipmentId": "machine", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 5 },
+  { "id": "good-morning", "muscleGroupId": "hamstrings", "secondaryMuscleIds": ["back"], "equipmentId": "barbell", "movementPatternId": "hinge", "defaultRestSec": 120, "incrementKg": 2.5 },
+  { "id": "nordic-curl", "muscleGroupId": "hamstrings", "secondaryMuscleIds": [], "equipmentId": "bodyweight", "movementPatternId": "isolation", "defaultRestSec": 90, "incrementKg": 1 },
+
+  { "id": "hip-thrust", "muscleGroupId": "glutes", "secondaryMuscleIds": ["hamstrings"], "equipmentId": "barbell", "movementPatternId": "hinge", "defaultRestSec": 150, "incrementKg": 2.5 },
+  { "id": "glute-bridge", "muscleGroupId": "glutes", "secondaryMuscleIds": ["hamstrings"], "equipmentId": "bodyweight", "movementPatternId": "hinge", "defaultRestSec": 60, "incrementKg": 2.5 },
+  { "id": "cable-kickback", "muscleGroupId": "glutes", "secondaryMuscleIds": [], "equipmentId": "cable", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 2.5 },
+
+  { "id": "standing-calf-raise", "muscleGroupId": "calves", "secondaryMuscleIds": [], "equipmentId": "machine", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 5 },
+  { "id": "seated-calf-raise", "muscleGroupId": "calves", "secondaryMuscleIds": [], "equipmentId": "machine", "movementPatternId": "isolation", "defaultRestSec": 60, "incrementKg": 5 },
+  { "id": "calf-raise-bw", "muscleGroupId": "calves", "secondaryMuscleIds": [], "equipmentId": "bodyweight", "movementPatternId": "isolation", "defaultRestSec": 45, "incrementKg": 2.5 },
+
+  { "id": "plank", "muscleGroupId": "core", "secondaryMuscleIds": [], "equipmentId": "bodyweight", "movementPatternId": "core", "defaultRestSec": 60, "incrementKg": 5 },
+  { "id": "hanging-leg-raise", "muscleGroupId": "core", "secondaryMuscleIds": [], "equipmentId": "bodyweight", "movementPatternId": "core", "defaultRestSec": 60, "incrementKg": 2.5 },
+  { "id": "cable-crunch", "muscleGroupId": "core", "secondaryMuscleIds": [], "equipmentId": "cable", "movementPatternId": "core", "defaultRestSec": 60, "incrementKg": 2.5 },
+  { "id": "ab-wheel", "muscleGroupId": "core", "secondaryMuscleIds": [], "equipmentId": "bodyweight", "movementPatternId": "core", "defaultRestSec": 60, "incrementKg": 2.5 },
+  { "id": "russian-twist", "muscleGroupId": "core", "secondaryMuscleIds": [], "equipmentId": "dumbbell", "movementPatternId": "core", "defaultRestSec": 45, "incrementKg": 1 }
+]
