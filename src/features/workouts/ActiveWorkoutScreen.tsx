@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useMemo, useRef, useState } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
 import { APP_CONFIG } from '@/core/config/app.config';
 import { useI18n } from '@/core/i18n';
@@ -13,9 +13,9 @@ import {
   discardSession,
   finishSession,
   incrementFor,
+  patchSet,
   removeExercise,
   reopenSet,
-  updateSet,
 } from '@/features/workouts/session-actions';
 import { ExercisePicker } from '@/features/workouts/ExercisePicker';
 import { PlateSheet } from '@/features/workouts/PlateSheet';
@@ -108,7 +108,7 @@ function SetRow({
         </div>
       </div>
 
-      <div class="mt-2 grid grid-cols-2 gap-2">
+      <div class="mt-2 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
         <Stepper
           label={t('common.weight')}
           value={set.weight}
@@ -129,7 +129,6 @@ function SetRow({
           onChange={(reps) => {
             if (reps !== set.reps) onChange({ reps });
           }}
-          suffix={t('common.reps')}
           compact
         />
       </div>
@@ -153,6 +152,7 @@ function ExerciseBlock({
   const { services, settings } = useApp();
   const { t } = useI18n();
   const [plateOpen, setPlateOpen] = useState(false);
+  const adding = useRef(false);
   const lastSet = sets[sets.length - 1];
   const last = useLiveQuery(
     () => services.repos.sets.lastForExercise(exercise.id, session.startedAt, 1),
@@ -162,8 +162,14 @@ function ExerciseBlock({
   const previous = last?.[0];
 
   const add = async () => {
+    if (adding.current) return;
+    adding.current = true;
     primeAudio();
-    await createSet(services.repos, session, exercise, settings);
+    try {
+      await createSet(services.repos, session, exercise, settings);
+    } finally {
+      adding.current = false;
+    }
   };
 
   const toggle = async (set: WorkoutSet) => {
@@ -210,7 +216,7 @@ function ExerciseBlock({
             set={set}
             setTypes={setTypes}
             increment={incrementFor(exercise, set.unit)}
-            onChange={(patch) => void updateSet(services.repos, { ...set, ...patch })}
+            onChange={(patch) => void patchSet(services.repos, set.id, patch)}
             onToggle={() => void toggle(set)}
             onDelete={() => void deleteSet(services.repos, set.id)}
           />

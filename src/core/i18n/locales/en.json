@@ -93,6 +93,7 @@
     "rest": "Rest",
     "restDone": "Rest is over",
     "restDoneBody": "Time for the next set.",
+    "restDoneAction": "Back to workout",
     "skipRest": "Skip",
     "plates": "Plates",
     "setType": "Set type",

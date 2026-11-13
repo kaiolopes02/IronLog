@@ -5,6 +5,7 @@ import { useI18n } from '@/core/i18n';
 import { HomeScreen } from '@/features/home/HomeScreen';
 import { WorkoutsScreen } from '@/features/workouts/WorkoutsScreen';
 import { ActiveWorkoutScreen } from '@/features/workouts/ActiveWorkoutScreen';
+import { RestAlert } from '@/features/workouts/RestAlert';
 import { LibraryScreen } from '@/features/library/LibraryScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
 import { BodyScreen } from '@/features/biometrics/BodyScreen';
@@ -93,6 +94,7 @@ export function Shell(): JSX.Element {
       <main class="flex flex-1 flex-col pb-[calc(64px+env(safe-area-inset-bottom))]">
         <CurrentScreen route={route} />
       </main>
+      <RestAlert />
       <NavBar route={route} />
     </div>
   );

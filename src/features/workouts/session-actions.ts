@@ -96,7 +96,7 @@ export async function createSet(
 
   const lastInSession = sessionSets
     .filter((set) => set.exerciseId === exercise.id)
-    .sort((a, b) => b.order - a.order)[0];
+    .sort((a, b) => b.order - a.order || b.completedAt - a.completedAt)[0];
   const source = lastInSession ?? previous[0];
   const unit = settings.unit;
   const weight = source ? Math.round(convert(source.weight, source.unit, unit) * 4) / 4 : 0;
@@ -121,8 +121,30 @@ export async function createSet(
   return set;
 }
 
-export async function updateSet(repos: Repositories, set: WorkoutSet): Promise<void> {
-  await repos.sets.putMany([set]);
+const setWrites = new Map<string, Promise<void>>();
+
+/**
+ * Serialized read-modify-write per set id, so two fields edited together
+ * (weight + reps) can't overwrite each other with a stale snapshot.
+ */
+export function patchSet(
+  repos: Repositories,
+  id: string,
+  patch: Partial<WorkoutSet>,
+): Promise<void> {
+  const previous = setWrites.get(id) ?? Promise.resolve();
+  const next = previous
+    .catch(() => undefined)
+    .then(async () => {
+      const current = await repos.sets.get(id);
+      if (current) await repos.sets.putMany([{ ...current, ...patch }]);
+    });
+  setWrites.set(id, next);
+  const cleanup = () => {
+    if (setWrites.get(id) === next) setWrites.delete(id);
+  };
+  void next.then(cleanup, cleanup);
+  return next;
 }
 
 export async function deleteSet(repos: Repositories, id: string): Promise<void> {

@@ -1,7 +1,5 @@
-import { useEffect, useRef } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
 import { useI18n } from '@/core/i18n';
-import { notify, playRestBeep, vibrate } from '@/core/platform/notifier';
 import { isElapsed, progress, remainingMs } from '@/domain/services/rest-timer';
 import { extendRest, skipRest } from '@/features/workouts/session-actions';
 import { useNow } from '@/shared/hooks/useNow';
@@ -11,24 +9,13 @@ import type { WorkoutSession } from '@/domain/entities';
 
 /** Resilient rest timer: everything is derived from the persisted end timestamp. */
 export function RestTimerBar({ session }: { session: WorkoutSession }) {
-  const { services, settings } = useApp();
+  const { services } = useApp();
   const { t } = useI18n();
   const timer = session.timer;
   const running = timer !== null && timer.endsAt !== null;
   const now = useNow(running, 250);
-  const firedFor = useRef<number | null>(null);
 
   const done = timer !== null && isElapsed(timer, now);
-
-  useEffect(() => {
-    if (!timer?.endsAt) return;
-    if (!done) return;
-    if (firedFor.current === timer.endsAt) return;
-    firedFor.current = timer.endsAt;
-    if (settings.timerSound) playRestBeep('triple');
-    if (settings.timerVibration) vibrate();
-    if (settings.timerNotifications) notify(t('workout.restDone'), t('workout.restDoneBody'));
-  }, [done, timer?.endsAt, settings.timerSound, settings.timerVibration, settings.timerNotifications, t]);
 
   if (!timer || timer.endsAt === null) return null;
 

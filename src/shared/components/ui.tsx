@@ -1,5 +1,5 @@
 import type { ComponentChildren, JSX } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
 export type ButtonVariant = 'primary' | 'outline' | 'ghost' | 'danger' | 'subtle';
 
@@ -281,48 +281,97 @@ export function Sheet({
   onClose,
   children,
   footer,
+  persistent = false,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: ComponentChildren;
   footer?: ComponentChildren;
+  persistent?: boolean;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
+    const panel = panelRef.current;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panel?.focus();
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      // Only the topmost dialog handles keys, so nested sheets don't fight.
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      if (dialogs[dialogs.length - 1] !== panel) return;
+
+      if (event.key === 'Escape') {
+        if (!persistent) onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      event.preventDefault();
+      if (focusable.length === 0) return;
+      const current = focusable.indexOf(document.activeElement as HTMLElement);
+      const delta = event.shiftKey ? -1 : 1;
+      const next =
+        current === -1
+          ? event.shiftKey
+            ? focusable.length - 1
+            : 0
+          : (current + delta + focusable.length) % focusable.length;
+      focusable[next].focus();
     };
+
     document.addEventListener('keydown', onKey);
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previous;
+      previouslyFocused?.focus();
     };
-  }, [open, onClose]);
+  }, [open, persistent]);
 
   if (!open) return null;
 
   return (
-    <div class="fixed inset-0 z-50 flex flex-col justify-end">
-      <button
-        type="button"
-        aria-label="close"
-        onClick={onClose}
-        class="absolute inset-0 bg-black/75"
-      />
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {persistent ? (
+        <div class="absolute inset-0 bg-black/75" aria-hidden="true" />
+      ) : (
+        <button
+          type="button"
+          aria-label="close"
+          onClick={onClose}
+          class="absolute inset-0 bg-black/75"
+        />
+      )}
       <div
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        class="relative max-h-[88vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface pb-[max(16px,env(safe-area-inset-bottom))]"
+        class="relative max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-surface focus:outline-none"
       >
         <div class="sticky top-0 flex items-center justify-between border-b border-line bg-surface px-4 py-3">
           <h2 class="text-base font-semibold text-ink">{title}</h2>
-          <IconButton label="close" onClick={onClose}>
-            <span class="text-xl leading-none">×</span>
-          </IconButton>
+          {persistent ? null : (
+            <IconButton label="close" onClick={onClose}>
+              <span class="text-xl leading-none">×</span>
+            </IconButton>
+          )}
         </div>
         <div class="space-y-4 px-4 py-4">{children}</div>
         {footer ? <div class="border-t border-line px-4 pt-3">{footer}</div> : null}

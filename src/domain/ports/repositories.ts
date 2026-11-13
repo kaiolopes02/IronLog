@@ -46,6 +46,7 @@ export interface SessionRepository {
 }
 
 export interface SetRepository {
+  get(id: string): Promise<WorkoutSet | undefined>;
   bySession(sessionId: string): Promise<WorkoutSet[]>;
   byExercise(exerciseId: string): Promise<WorkoutSet[]>;
   lastForExercise(exerciseId: string, before: number, limit: number): Promise<WorkoutSet[]>;

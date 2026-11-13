@@ -39,7 +39,7 @@ export function ToastHost() {
     <div
       role="status"
       aria-live="polite"
-      class={`fixed inset-x-4 bottom-[calc(72px+env(safe-area-inset-bottom))] z-40 rounded-lg border px-3 py-2 text-sm ${
+      class={`pointer-events-none fixed left-1/2 top-1/2 z-40 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border px-3 py-2 text-sm ${
         message.tone === 'error'
           ? 'border-danger/50 bg-[#2A1212] text-ink'
           : 'border-line bg-raised text-ink'

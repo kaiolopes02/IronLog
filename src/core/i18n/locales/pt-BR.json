@@ -93,6 +93,7 @@
     "rest": "Descanso",
     "restDone": "Descanso acabou",
     "restDoneBody": "Hora da próxima série.",
+    "restDoneAction": "Voltar ao treino",
     "skipRest": "Pular",
     "plates": "Anilhas",
     "setType": "Tipo de série",

@@ -174,6 +174,9 @@ export class SessionRepositoryDexie implements SessionRepository {
 
 export class SetRepositoryDexie implements SetRepository {
   constructor(private readonly db: IronLogDb) {}
+  get(id: string): Promise<WorkoutSet | undefined> {
+    return this.db.sets.get(id);
+  }
   bySession(sessionId: string): Promise<WorkoutSet[]> {
     return this.db.sets
       .where('[sessionId+order]')
