@@ -7,7 +7,10 @@ export interface CsvColumn<T> {
 
 function escapeCell(value: CsvValue): string {
   if (value === null || value === undefined) return '';
-  const text = String(value);
+  let text = String(value);
+  // A leading apostrophe stops Excel/Sheets from evaluating text as a formula.
+  // Numbers are left alone so negative values stay numeric.
+  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   if (/[",\n\r;]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }

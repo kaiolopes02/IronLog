@@ -31,7 +31,7 @@ export const APP_CONFIG = {
   },
   plates: { minPairs: 0, maxPairs: 20 },
   security: {
-    pinMinLength: 4,
+    pinMinLength: 6,
     pinMaxLength: 12,
     kdf: {
       probeTargetMs: 50,
@@ -40,6 +40,11 @@ export const APP_CONFIG = {
       maxIterations: 310_000,
       saltBytes: 16,
       roundTo: 10_000,
+    },
+    backup: {
+      passwordMinLength: 8,
+      iterations: 600_000,
+      maxIterations: 1_000_000,
     },
     vaultNoteMaxLength: 500,
   },

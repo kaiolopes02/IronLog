@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
 import { useI18n } from '@/core/i18n';
+import { unlockDelayMs } from '@/features/security/backoff';
 import { Button, Card, TextInput } from '@/shared/components/ui';
 import { IconLock } from '@/shared/components/icons';
 
@@ -10,6 +11,7 @@ export function UnlockScreen() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [attempts, setAttempts] = useState(0);
 
   const submit = async () => {
     if (!security) return;
@@ -20,8 +22,14 @@ export function UnlockScreen() {
       if (ok) {
         setUnlocked(true);
       } else {
+        const failures = attempts + 1;
+        setAttempts(failures);
         setError(t('security.wrongPin'));
         setPin('');
+        // Slow down repeated guessing in this session. shortcut: in-memory only,
+        // resets on reload — add server-side throttling if a backend ever exists.
+        const delay = unlockDelayMs(failures);
+        if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
       }
     } catch {
       setError(t('common.error'));
@@ -55,7 +63,7 @@ export function UnlockScreen() {
           />
         </label>
         {error ? <p class="text-sm text-danger">{error}</p> : null}
-        <Button block size="lg" disabled={pin.length < 4 || busy} onClick={submit}>
+        <Button block size="lg" disabled={pin.length === 0 || busy} onClick={submit}>
           {t('security.unlock')}
         </Button>
       </Card>

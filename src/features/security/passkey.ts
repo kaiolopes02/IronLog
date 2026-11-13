@@ -57,22 +57,3 @@ export async function registerPasskey(): Promise<boolean> {
   }
 }
 
-export async function assertPasskey(): Promise<boolean> {
-  if (!passkeySupported()) return false;
-  const stored = localStorage.getItem(PASSKEY_KEY);
-  if (!stored) return false;
-  try {
-    const id = new Uint8Array(JSON.parse(stored) as number[]);
-    const assertion = await navigator.credentials.get({
-      publicKey: {
-        challenge: challenge(),
-        allowCredentials: [{ type: 'public-key', id }],
-        userVerification: 'required',
-        timeout: 60_000,
-      },
-    });
-    return assertion !== null;
-  } catch {
-    return false;
-  }
-}

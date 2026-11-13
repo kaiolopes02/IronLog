@@ -174,7 +174,7 @@ export async function encryptWithPassword(value: unknown, password: string): Pro
   payload: KeyEnvelope;
 }> {
   const salt = randomBytes(KDF.saltBytes);
-  const iterations = KDF.minIterations;
+  const iterations = APP_CONFIG.security.backup.iterations;
   const key = await deriveKek(password, salt, iterations);
   return {
     kdf: { iterations, salt: bytesToBase64(salt) },

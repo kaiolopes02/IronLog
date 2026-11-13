@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
+import { APP_CONFIG } from '@/core/config/app.config';
 import { useI18n } from '@/core/i18n';
 import { wipeEverything } from '@/core/platform/storage';
 import {
@@ -23,7 +24,7 @@ export function DataSection() {
   const stamp = new Date().toISOString().slice(0, 10);
 
   const exportJson = async (encrypted: boolean) => {
-    if (encrypted && password.length < 4) {
+    if (encrypted && password.length < APP_CONFIG.security.backup.passwordMinLength) {
       setError(t('settings.passwordHint'));
       return;
     }

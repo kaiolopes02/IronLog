@@ -43,6 +43,9 @@ export async function buildBackup(db: IronLogDb): Promise<BackupFile> {
 export async function serializeBackup(db: IronLogDb, password?: string): Promise<string> {
   const backup = await buildBackup(db);
   if (!password) return JSON.stringify(backup, null, 2);
+  if (password.length < APP_CONFIG.security.backup.passwordMinLength) {
+    throw new Error('weak password');
+  }
   const encrypted = await encryptWithPassword(backup, password);
   const file: EncryptedBackupFile = {
     app: 'ironlog',
@@ -56,12 +59,15 @@ export async function serializeBackup(db: IronLogDb, password?: string): Promise
 }
 
 export function isEncryptedBackup(value: unknown): value is EncryptedBackupFile {
+  if (!isRecord(value) || value.app !== 'ironlog' || value.encrypted !== true) return false;
+  if (!isRecord(value.kdf) || !isRecord(value.payload)) return false;
+  const { iterations, salt } = value.kdf;
   return (
-    isRecord(value) &&
-    value.app === 'ironlog' &&
-    value.encrypted === true &&
-    isRecord(value.kdf) &&
-    isRecord(value.payload)
+    typeof iterations === 'number' &&
+    Number.isInteger(iterations) &&
+    iterations > 0 &&
+    iterations <= APP_CONFIG.security.backup.maxIterations &&
+    typeof salt === 'string'
   );
 }
 
@@ -92,7 +98,17 @@ export async function parseBackup(text: string, password?: string): Promise<Back
   return parsed;
 }
 
+function hasPrimaryKey(value: unknown): boolean {
+  return isRecord(value) && (typeof value.id === 'string' || typeof value.key === 'string');
+}
+
 export async function restoreBackup(db: IronLogDb, backup: BackupFile): Promise<void> {
+  for (const table of db.tables) {
+    const rows = backup.data[table.name];
+    if (rows !== undefined && (!Array.isArray(rows) || !rows.every(hasPrimaryKey))) {
+      throw new Error('invalid backup');
+    }
+  }
   await db.transaction('rw', db.tables, async () => {
     for (const table of db.tables) {
       await table.clear();

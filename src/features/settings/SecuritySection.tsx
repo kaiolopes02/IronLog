@@ -145,7 +145,7 @@ export function SecuritySection() {
               />
             </Field>
             {error ? <p class="text-sm text-danger">{error}</p> : null}
-            <Button block size="lg" disabled={busy || pin.length < 4} onClick={() => void (security ? changePin() : createPin())}>
+            <Button block size="lg" disabled={busy || pin.length < APP_CONFIG.security.pinMinLength} onClick={() => void (security ? changePin() : createPin())}>
               {security ? t('security.changePin') : t('security.setPin')}
             </Button>
           </>

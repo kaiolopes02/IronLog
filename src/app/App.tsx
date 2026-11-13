@@ -39,6 +39,26 @@ export function App({ bootResult }: { bootResult: BootResult }) {
     if (bootResult.activeSessionId && !bootResult.security) navigate('/session');
   }, [bootResult.activeSessionId, bootResult.security]);
 
+  // Lock the vault after a minute in the background. Short trips (file picker,
+  // share sheet, app switch) do not interrupt the session.
+  useEffect(() => {
+    if (!security) return;
+    let hiddenAt = 0;
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        return;
+      }
+      if (hiddenAt > 0 && Date.now() - hiddenAt >= 60_000) {
+        bootResult.services.crypto.lock();
+        setUnlocked(false);
+      }
+      hiddenAt = 0;
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [security, bootResult.services.crypto]);
+
   const needsConsent = settings.consentVersion !== APP_CONFIG.consentVersion;
   const locked = security !== null && !unlocked;
 

@@ -27,4 +27,16 @@ describe('csv', () => {
   it('writes an empty body when there are no rows', () => {
     expect(toCsv<Row>([], [{ header: 'name', value: (row) => row.name }])).toBe('name');
   });
+
+  it('neutralizes spreadsheet formulas in text cells and keeps numbers numeric', () => {
+    const csv = toCsv<Row>(
+      [{ name: '=HYPERLINK("https://evil.test","x")', value: -2 }],
+      [
+        { header: 'name', value: (row) => row.name },
+        { header: 'value', value: (row) => row.value },
+      ],
+    );
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain(',-2');
+  });
 });
