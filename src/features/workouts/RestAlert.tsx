@@ -2,7 +2,14 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
 import { navigate } from '@/app/router';
 import { useI18n } from '@/core/i18n';
-import { notify, playRestBeep, vibrate } from '@/core/platform/notifier';
+import {
+  cancelRestAlarm,
+  notify,
+  playRestBeep,
+  restAlarmPlayed,
+  scheduleRestAlarm,
+  vibrate,
+} from '@/core/platform/notifier';
 import { isElapsed } from '@/domain/services/rest-timer';
 import { skipRest } from '@/features/workouts/session-actions';
 import { useLiveQuery } from '@/shared/hooks/useLiveQuery';
@@ -19,11 +26,24 @@ export function RestAlert() {
   const firedFor = useRef<number | null>(null);
   const done = timer !== null && isElapsed(timer, now);
 
+  // Arm the alarm on the audio clock: it fires at `endsAt` even when the JS
+  // timers are throttled or frozen in the background.
+  useEffect(() => {
+    const endsAt = timer?.endsAt ?? null;
+    if (endsAt === null || !settings.timerSound || endsAt <= Date.now()) {
+      cancelRestAlarm();
+      return;
+    }
+    scheduleRestAlarm(endsAt);
+    // No unmount cleanup: a vault auto-lock unmounts this tree and must not
+    // silence an alarm that is already armed.
+  }, [timer?.endsAt, settings.timerSound]);
+
   useEffect(() => {
     if (!done || !timer?.endsAt) return;
     if (firedFor.current === timer.endsAt) return;
     firedFor.current = timer.endsAt;
-    if (settings.timerSound) playRestBeep('triple');
+    if (settings.timerSound && !restAlarmPlayed(timer.endsAt)) playRestBeep();
     if (settings.timerVibration) vibrate();
     if (settings.timerNotifications) notify(t('workout.restDone'), t('workout.restDoneBody'));
   }, [
