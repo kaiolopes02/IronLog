@@ -50,6 +50,27 @@ class FakeAudioContext {
   }
 }
 
+class FakeAudio {
+  static instances: FakeAudio[] = [];
+  static rejectPlay = false;
+  src = '';
+  preload = '';
+  paused = true;
+  currentTime = 0;
+  play = vi.fn(() => {
+    if (FakeAudio.rejectPlay) return Promise.reject(new Error('blocked'));
+    this.paused = false;
+    return Promise.resolve();
+  });
+  pause = vi.fn(() => {
+    this.paused = true;
+  });
+
+  constructor() {
+    FakeAudio.instances.push(this);
+  }
+}
+
 async function loadNotifier() {
   return import('@/core/platform/notifier');
 }
@@ -58,17 +79,36 @@ function scheduledBursts(ctx: FakeAudioContext) {
   return ctx.oscillators.filter((oscillator) => oscillator.start.mock.calls[0]?.length === 1);
 }
 
+function useIOSUserAgent() {
+  Object.defineProperty(navigator, 'userAgent', {
+    value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+    configurable: true,
+  });
+}
+
 beforeEach(() => {
   vi.resetModules();
   FakeAudioContext.instances = [];
+  FakeAudio.instances = [];
+  FakeAudio.rejectPlay = false;
   vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
   (window as unknown as { AudioContext: unknown }).AudioContext = FakeAudioContext;
+  vi.stubGlobal('Audio', FakeAudio);
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: vi.fn(() => 'blob:alarm'),
+    configurable: true,
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   Reflect.deleteProperty(window, 'AudioContext');
   Reflect.deleteProperty(window, 'Notification');
+  Reflect.deleteProperty(navigator, 'userAgent');
+  Reflect.deleteProperty(URL, 'createObjectURL');
+  Reflect.deleteProperty(URL, 'revokeObjectURL');
   Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
 });
 
@@ -160,7 +200,8 @@ describe('notifier', () => {
   it('plays the alarm immediately when scheduling is not possible', async () => {
     const notifier = await loadNotifier();
 
-    expect(notifier.playRestBeep()).toBe(true);
+    expect(notifier.playRestBeep(123)).toBe(true);
+    expect(notifier.restAlarmPlayed(123)).toBe(true); // the beep is the receipt
 
     const ctx = FakeAudioContext.instances[0];
     const bursts = scheduledBursts(ctx);
@@ -193,5 +234,99 @@ describe('notifier', () => {
 
     expect(notifier.notify('Descanso', 'Acabou')).toBe(true);
     expect(created[0].silent).toBe(false);
+  });
+
+  it('plays the pre-rendered track instead of Web Audio on iOS', async () => {
+    useIOSUserAgent();
+    const notifier = await loadNotifier();
+    const endsAt = 1_000_000 + 60_000;
+
+    expect(notifier.scheduleRestAlarm(endsAt)).toBe(true);
+
+    const element = FakeAudio.instances[0];
+    expect(element.src).toBe('blob:alarm');
+    expect(element.play).toHaveBeenCalled();
+    expect(FakeAudioContext.instances).toHaveLength(0);
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(false);
+
+    element.currentTime = 60.2; // the media pipeline reached the audible part
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(true);
+  });
+
+  it('keeps the iOS play receipt after a cancel', async () => {
+    useIOSUserAgent();
+    const notifier = await loadNotifier();
+    const endsAt = 1_000_000 + 60_000;
+
+    notifier.scheduleRestAlarm(endsAt);
+    const element = FakeAudio.instances[0];
+    element.currentTime = 60.5;
+
+    notifier.cancelRestAlarm();
+    expect(element.pause).toHaveBeenCalled();
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(true);
+  });
+
+  it('leaves the media path alone outside iOS', async () => {
+    const notifier = await loadNotifier();
+
+    notifier.scheduleRestAlarm(1_000_000 + 5_000);
+
+    expect(FakeAudio.instances).toHaveLength(0);
+    expect(FakeAudioContext.instances).toHaveLength(1);
+  });
+
+  it('retries the iOS unlock from a later gesture', async () => {
+    useIOSUserAgent();
+    FakeAudio.rejectPlay = true;
+    const notifier = await loadNotifier();
+
+    notifier.primeAudio();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const element = FakeAudio.instances[0];
+    expect(element.play).toHaveBeenCalledTimes(1);
+
+    FakeAudio.rejectPlay = false;
+    notifier.primeAudio(); // a blocked unlock must not be lost for the session
+    expect(element.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('unlocks the iOS media element once', async () => {
+    useIOSUserAgent();
+    const notifier = await loadNotifier();
+
+    notifier.primeAudio();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    notifier.primeAudio();
+
+    expect(FakeAudio.instances).toHaveLength(1);
+    expect(FakeAudio.instances[0].play).toHaveBeenCalledTimes(1);
+  });
+
+  it('encodes silence followed by the alarm as an 8 kHz mono WAV', async () => {
+    useIOSUserAgent();
+    const notifier = await loadNotifier();
+    const silenceSec = 2;
+
+    notifier.scheduleRestAlarm(1_000_000 + silenceSec * 1_000);
+
+    const blobs = vi.mocked(URL.createObjectURL).mock.calls.map(([blob]) => blob as Blob);
+    const bytes = new Uint8Array(await blobs[blobs.length - 1].arrayBuffer());
+    const view = new DataView(bytes.buffer);
+    const ascii = (offset: number) => String.fromCharCode(...bytes.slice(offset, offset + 4));
+
+    expect(ascii(0)).toBe('RIFF');
+    expect(ascii(8)).toBe('WAVE');
+    expect(view.getUint32(24, true)).toBe(8000);
+    expect(view.getUint16(22, true)).toBe(1);
+    expect(view.getUint32(40, true)).toBe(bytes.length - 44);
+    expect(bytes.length - 44).toBe(silenceSec * 8000 + Math.ceil(1.68 * 8000));
+
+    const data = bytes.subarray(44);
+    expect(data.subarray(0, silenceSec * 8000).every((value) => value === 128)).toBe(true);
+    // Every burst must start in its own window of the alarm.
+    for (const delay of [0, 0.26, 0.52, 0.78, 1.04, 1.3]) {
+      expect(data[silenceSec * 8000 + Math.round(delay * 8000) + 10]).not.toBe(128);
+    }
   });
 });

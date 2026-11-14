@@ -43,7 +43,7 @@ export function RestAlert() {
     if (!done || !timer?.endsAt) return;
     if (firedFor.current === timer.endsAt) return;
     firedFor.current = timer.endsAt;
-    if (settings.timerSound && !restAlarmPlayed(timer.endsAt)) playRestBeep();
+    if (settings.timerSound && !restAlarmPlayed(timer.endsAt)) playRestBeep(timer.endsAt);
     if (settings.timerVibration) vibrate();
     if (settings.timerNotifications) notify(t('workout.restDone'), t('workout.restDoneBody'));
   }, [
