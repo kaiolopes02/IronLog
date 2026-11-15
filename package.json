@@ -13,16 +13,25 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "lint": "eslint .",
+    "android:sync": "npm run build && cap sync android",
     "icons": "node scripts/gen-icons.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "verify": "npm run lint && npm run test && npm run build && npm run check:bundle"
   },
   "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/share": "^8.0.3",
     "dexie": "^4.4.7",
     "preact": "^11.2.0",
     "uplot": "^1.6.32"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.65.0",
     "@preact/preset-vite": "^2.10.6",

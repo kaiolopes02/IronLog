@@ -32,7 +32,7 @@ export function DataSection() {
     setError('');
     try {
       const text = await serializeBackup(services.db, encrypted ? password : undefined);
-      downloadFile(
+      await downloadFile(
         `ironlog-${stamp}${encrypted ? '-encrypted' : ''}.json`,
         text,
         'application/json',
@@ -48,7 +48,7 @@ export function DataSection() {
   const exportCsv = async () => {
     setBusy(true);
     try {
-      downloadFile(`ironlog-${stamp}.csv`, await buildCsv(services.db, locale), 'text/csv');
+      await downloadFile(`ironlog-${stamp}.csv`, await buildCsv(services.db, locale), 'text/csv');
       toast(t('settings.exported'));
     } catch {
       setError(t('common.error'));

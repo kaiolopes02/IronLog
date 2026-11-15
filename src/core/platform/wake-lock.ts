@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { KeepAwake } from '@capacitor-community/keep-awake';
+
 export interface WakeLockHandle {
   release(): void;
 }
@@ -17,6 +20,14 @@ interface WakeLockLike {
  * screen may dim during rest. Re-acquisition happens on visibility change.
  */
 export async function acquireWakeLock(onRelease?: () => void): Promise<WakeLockHandle | null> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await KeepAwake.keepAwake();
+      return { release: () => void KeepAwake.allowSleep().catch(() => undefined) };
+    } catch {
+      return null;
+    }
+  }
   if (typeof navigator === 'undefined') return null;
   const nav = navigator as unknown as { wakeLock?: WakeLockLike };
   if (!nav.wakeLock) return null;

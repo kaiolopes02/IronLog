@@ -1,9 +1,13 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
 import { APP_CONFIG } from '@/core/config/app.config';
 import { LOCALES, LOCALE_LABELS, useI18n, type Locale } from '@/core/i18n';
 import { FORMULAS } from '@/domain/services/one-rep-max';
-import { requestNotificationPermission } from '@/core/platform/notifier';
+import {
+  checkExactAlarmPermission,
+  requestExactAlarmPermission,
+  requestNotificationPermission,
+} from '@/core/platform/notifier';
 import { requestPersistentStorage, storageEstimate } from '@/core/platform/storage';
 import { useLiveQuery } from '@/shared/hooks/useLiveQuery';
 import {
@@ -28,6 +32,12 @@ export function SettingsScreen() {
   const { t, locale } = useI18n();
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<string | null>(null);
+  const [exactAlarm, setExactAlarm] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!capabilities.native) return;
+    void checkExactAlarmPermission().then(setExactAlarm);
+  }, [capabilities.native]);
 
   const muscles = useLiveQuery(() => services.repos.catalog.muscleGroups(), [services.repos], []);
   const formulaOptions = useMemo(
@@ -48,6 +58,9 @@ export function SettingsScreen() {
   const enableNotifications = async () => {
     const granted = await requestNotificationPermission();
     await updateSettings({ timerNotifications: granted });
+    // Native has no sound without a notification, so finishing the setup here
+    // avoids interrupting a workout with a system screen later.
+    if (granted && capabilities.native) setExactAlarm(await requestExactAlarmPermission());
     if (!granted) toast(t('common.error'));
   };
 
@@ -207,6 +220,15 @@ export function SettingsScreen() {
             {capabilities.notifications ? null : (
               <p class="text-xs text-muted">{t('settings.notificationsUnsupported')}</p>
             )}
+            {capabilities.native && exactAlarm === false ? (
+              <Button
+                block
+                variant="outline"
+                onClick={async () => setExactAlarm(await requestExactAlarmPermission())}
+              >
+                {t('settings.exactAlarm')}
+              </Button>
+            ) : null}
           </Card>
         </Section>
 

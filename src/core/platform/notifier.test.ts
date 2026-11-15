@@ -1,5 +1,35 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Unmocked Capacitor resolves to the web implementation in jsdom; the save
+// button on Android is a plugin call, so it has to be faked to be observable.
+const plugin = vi.hoisted(() => ({
+  isNative: false,
+  schedule: vi.fn(),
+  cancel: vi.fn(),
+  createChannel: vi.fn(),
+  checkExact: vi.fn(),
+  changeExact: vi.fn(),
+  requestPermissions: vi.fn(),
+  haptics: vi.fn(),
+}));
+
+vi.mock('@capacitor/core', () => ({
+  Capacitor: { isNativePlatform: () => plugin.isNative },
+}));
+
+vi.mock('@capacitor/local-notifications', () => ({
+  LocalNotifications: {
+    createChannel: plugin.createChannel,
+    checkExactNotificationSetting: plugin.checkExact,
+    changeExactNotificationSetting: plugin.changeExact,
+    requestPermissions: plugin.requestPermissions,
+    schedule: plugin.schedule,
+    cancel: plugin.cancel,
+  },
+}));
+
+vi.mock('@capacitor/haptics', () => ({ Haptics: { vibrate: plugin.haptics } }));
+
 class FakeParam {
   value = 0;
   setValueAtTime = vi.fn();
@@ -97,6 +127,14 @@ function useAndroidUserAgent() {
 
 beforeEach(() => {
   vi.resetModules();
+  plugin.isNative = false;
+  plugin.schedule.mockReset().mockResolvedValue({});
+  plugin.cancel.mockReset().mockResolvedValue(undefined);
+  plugin.createChannel.mockReset().mockResolvedValue(undefined);
+  plugin.checkExact.mockReset().mockResolvedValue({ exact_alarm: 'granted' });
+  plugin.changeExact.mockReset().mockResolvedValue({ exact_alarm: 'granted' });
+  plugin.requestPermissions.mockReset().mockResolvedValue({ display: 'granted' });
+  plugin.haptics.mockReset().mockResolvedValue(undefined);
   FakeAudioContext.instances = [];
   FakeAudio.instances = [];
   FakeAudio.rejectPlay = false;
@@ -460,5 +498,145 @@ describe('notifier', () => {
     for (const delay of [0, 0.26, 0.52, 0.78, 1.04, 1.3]) {
       expect(data[silenceSec * 8000 + Math.round(delay * 8000) + 10]).not.toBe(128);
     }
+  });
+});
+
+describe('notifier inside the Android app', () => {
+  const endsAt = 1_000_000 + 45_000;
+
+  async function loadNative() {
+    plugin.isNative = true;
+    const notifier = await loadNotifier();
+    await notifier.initRestAlarm();
+    return notifier;
+  }
+
+  function scheduled(): Array<{
+    notifications: Array<{
+      id: number;
+      channelId: string;
+      autoCancel: boolean;
+      isExactNotification: boolean;
+      schedule: { at: Date; allowWhileIdle: boolean };
+    }>;
+  }> {
+    return plugin.schedule.mock.calls.map((call) => call[0]);
+  }
+
+  function lastAlarm() {
+    const alarms = scheduled();
+    return alarms[alarms.length - 1].notifications[0];
+  }
+
+  it('arms an exact alarm at the deadline instead of Web Audio', async () => {
+    const notifier = await loadNative();
+
+    expect(notifier.scheduleRestAlarm(endsAt)).toBe(true);
+
+    const alarm = lastAlarm();
+    expect(alarm.id).toBe(1);
+    expect(alarm.channelId).toBe('rest-v1');
+    expect(alarm.autoCancel).toBe(true);
+    expect(alarm.schedule.at).toEqual(new Date(endsAt));
+    expect(alarm.schedule.allowWhileIdle).toBe(true);
+    expect(alarm.isExactNotification).toBe(true);
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(true);
+
+    // The OS owns the sound; the WebView must not hold the audio session.
+    expect(FakeAudioContext.instances).toHaveLength(0);
+    expect(FakeAudio.instances).toHaveLength(0);
+  });
+
+  it('creates a high-importance channel with the bundled alarm sound', async () => {
+    await loadNative();
+
+    expect(plugin.createChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'rest-v1', importance: 4, sound: 'rest_alarm', vibration: true }),
+    );
+  });
+
+  it('replaces the same alarm id on +15s and clears it on skip', async () => {
+    const notifier = await loadNative();
+
+    notifier.scheduleRestAlarm(endsAt);
+    notifier.scheduleRestAlarm(endsAt + 15_000);
+
+    expect(scheduled().map((call) => call.notifications[0].id)).toEqual([1, 1]);
+    expect(scheduled().map((call) => call.notifications[0].schedule.at.getTime())).toEqual([
+      endsAt,
+      endsAt + 15_000,
+    ]);
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(false);
+
+    notifier.cancelRestAlarm();
+    expect(plugin.cancel).toHaveBeenCalledWith({ notifications: [{ id: 1 }] });
+    expect(notifier.restAlarmPlayed(endsAt + 15_000)).toBe(false);
+  });
+
+  it('stops asking for exact alarms when the plugin falls back to inexact', async () => {
+    plugin.schedule.mockResolvedValueOnce({ warning: 'OS-PLUG-LNOT-0017' });
+    const notifier = await loadNative();
+
+    notifier.scheduleRestAlarm(endsAt);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    notifier.scheduleRestAlarm(endsAt + 15_000);
+
+    const alarms = scheduled();
+    expect(alarms[0].notifications[0].isExactNotification).toBe(true);
+    expect(alarms[1].notifications[0].isExactNotification).toBe(false);
+  });
+
+  it('schedules inexact until the settings button grants exact alarms', async () => {
+    plugin.checkExact.mockResolvedValue({ exact_alarm: 'denied' });
+    const notifier = await loadNative();
+    expect(await notifier.checkExactAlarmPermission()).toBe(false);
+
+    notifier.scheduleRestAlarm(endsAt);
+    expect(lastAlarm().isExactNotification).toBe(false);
+
+    expect(await notifier.requestExactAlarmPermission()).toBe(true);
+    expect(plugin.changeExact).toHaveBeenCalled();
+    notifier.scheduleRestAlarm(endsAt);
+    expect(lastAlarm().isExactNotification).toBe(true);
+  });
+
+  it('hands a failed schedule back to the foreground beep', async () => {
+    const notifier = await loadNative();
+    plugin.schedule.mockRejectedValueOnce(new Error('no alarm manager'));
+
+    notifier.scheduleRestAlarm(endsAt);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(false);
+
+    expect(notifier.playRestBeep(endsAt)).toBe(true);
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(true);
+  });
+
+  it('vibrates through Haptics with the summed pattern length', async () => {
+    const notifier = await loadNative();
+
+    expect(notifier.vibrate()).toBe(true);
+    expect(plugin.haptics).toHaveBeenCalledWith({ duration: 750 });
+
+    expect(notifier.vibrate(40)).toBe(true);
+    expect(plugin.haptics).toHaveBeenCalledWith({ duration: 50 });
+  });
+
+  it('asks the plugin for notification permission and never notifies from the WebView', async () => {
+    const notifier = await loadNative();
+    class WebNotification {
+      static permission = 'granted';
+      constructor() {
+        throw new Error('the web path must not run inside the app');
+      }
+    }
+    (window as unknown as { Notification: unknown }).Notification = WebNotification;
+
+    plugin.requestPermissions.mockResolvedValue({ display: 'denied' });
+    expect(await notifier.requestNotificationPermission()).toBe(false);
+    plugin.requestPermissions.mockResolvedValue({ display: 'granted' });
+    expect(await notifier.requestNotificationPermission()).toBe(true);
+
+    expect(notifier.notify('Descanso', 'Acabou')).toBe(false);
   });
 });

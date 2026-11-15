@@ -1,3 +1,8 @@
+import { Capacitor } from '@capacitor/core';
+import { Haptics } from '@capacitor/haptics';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { translate } from '@/core/i18n';
+
 type AudioContextCtor = typeof AudioContext;
 
 let context: AudioContext | null = null;
@@ -21,6 +26,20 @@ let mediaReceipt: { endsAt: number; delay: number } | null = null;
 // Set when the catch-up beep already covered a deadline, so a remount cannot
 // replay it when the blocked media track never moved.
 let beepedFor: number | null = null;
+
+// Native alarm: AlarmManager wakes the device, so it survives the WebView being
+// frozen or killed. Armed for a single fixed id, so +15/-15/skip replace it.
+const REST_NOTIFICATION_ID = 1;
+const REST_CHANNEL_ID = 'rest-v1';
+let nativeArmedFor: number | null = null;
+// Exact alarms need a system toggle on Android 12+, and asking for it opens the
+// system screen. Never do that mid-workout: until Settings grants it (or the
+// plugin warns it fell back), alarms are scheduled inexact.
+let exactAllowed = false;
+
+function isNative(): boolean {
+  return Capacitor.isNativePlatform();
+}
 
 function isIOS(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -239,8 +258,92 @@ function armMedia(endsAt: number, delay: number): boolean {
   }
 }
 
+/**
+ * Creates the high-importance channel and learns whether exact alarms are
+ * allowed. Called at boot, and again after the user grants the setting.
+ */
+export async function initRestAlarm(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await LocalNotifications.createChannel({
+      id: REST_CHANNEL_ID,
+      name: 'IronLog — descanso',
+      description: 'Fim do descanso entre séries',
+      importance: 4,
+      visibility: 1,
+      vibration: true,
+      sound: 'rest_alarm',
+    });
+  } catch {
+    // Devices without channels still get the notification on the default one.
+  }
+  exactAllowed = await checkExactAlarmPermission();
+}
+
+/** Android 12+ gates exact alarms behind a system toggle. */
+export async function checkExactAlarmPermission(): Promise<boolean> {
+  if (!isNative()) return true;
+  try {
+    const status = await LocalNotifications.checkExactNotificationSetting();
+    return status.exact_alarm === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+/** Opens the system screen that grants exact alarms. */
+export async function requestExactAlarmPermission(): Promise<boolean> {
+  if (!isNative()) return true;
+  try {
+    const status = await LocalNotifications.changeExactNotificationSetting();
+    exactAllowed = status.exact_alarm === 'granted';
+    return exactAllowed;
+  } catch {
+    return false;
+  }
+}
+
+async function scheduleNative(endsAt: number): Promise<void> {
+  try {
+    const result = await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: REST_NOTIFICATION_ID,
+          title: translate('workout.restDone'),
+          body: translate('workout.restDoneBody'),
+          channelId: REST_CHANNEL_ID,
+          autoCancel: true,
+          isExactNotification: exactAllowed,
+          schedule: {
+            at: new Date(endsAt),
+            // AlarmManager wakes the device; a rest is short, so the Doze
+            // once-per-9-minutes cap never applies in practice.
+            allowWhileIdle: true,
+          },
+        },
+      ],
+    });
+    // 0017/0018: the exact permission is gone. Stop asking for it this session.
+    if (result.warning) exactAllowed = false;
+  } catch {
+    nativeArmedFor = null; // the foreground beep takes over
+  }
+}
+
+function cancelNative(): void {
+  nativeArmedFor = null;
+  void LocalNotifications.cancel({ notifications: [{ id: REST_NOTIFICATION_ID }] }).catch(
+    () => undefined,
+  );
+}
+
 /** Arms the alarm on the audio clock so it fires at `endsAt` even if JS timers are frozen. */
 export function scheduleRestAlarm(endsAt: number): boolean {
+  if (isNative()) {
+    nativeArmedFor = endsAt; // optimistic: restAlarmPlayed must not double-beep
+    void scheduleNative(endsAt);
+    return true;
+  }
   cancelRestAlarm();
   const delay = Math.max(0, (endsAt - Date.now()) / 1000);
   if (needsMedia() && armMedia(endsAt, delay)) return true;
@@ -259,6 +362,7 @@ export function scheduleRestAlarm(endsAt: number): boolean {
 }
 
 export function cancelRestAlarm(): void {
+  if (isNative()) cancelNative();
   if (armed) {
     for (const node of armed.nodes) {
       try {
@@ -280,6 +384,7 @@ export function cancelRestAlarm(): void {
 
 /** True when the alarm for this deadline was already rendered. */
 export function restAlarmPlayed(endsAt: number): boolean {
+  if (nativeArmedFor === endsAt) return true;
   if (beepedFor === endsAt) return true;
   if (mediaReceipt?.endsAt === endsAt && media !== null) {
     return (
@@ -310,6 +415,11 @@ export function playRestBeep(endsAt: number): boolean {
 }
 
 export function vibrate(pattern: number | number[] = [300, 150, 300]): boolean {
+  if (isNative()) {
+    const total = Array.isArray(pattern) ? pattern.reduce((sum, part) => sum + part, 0) : pattern;
+    void Haptics.vibrate({ duration: Math.max(50, total) }).catch(() => undefined);
+    return true;
+  }
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return false;
   try {
     return navigator.vibrate(pattern);
@@ -319,6 +429,14 @@ export function vibrate(pattern: number | number[] = [300, 150, 300]): boolean {
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (isNative()) {
+    try {
+      const status = await LocalNotifications.requestPermissions();
+      return status.display === 'granted';
+    } catch {
+      return false;
+    }
+  }
   if (typeof window === 'undefined' || !('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;
   try {
@@ -331,6 +449,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 /** Local notification only; the page must stay same-origin. */
 export function notify(title: string, body: string): boolean {
+  // The native app already has the alarm scheduled by the OS.
+  if (isNative()) return false;
   if (typeof window === 'undefined' || !('Notification' in window)) return false;
   if (Notification.permission !== 'granted') return false;
   // Muted while visible (the audio alarm covers it), audible in the background,

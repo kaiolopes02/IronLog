@@ -2,7 +2,8 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'node_modules', 'coverage', '.vite'] },
+  // android/ holds the generated project plus a copy of dist (minified bundles).
+  { ignores: ['dist', 'dev-dist', 'node_modules', 'coverage', '.vite', 'android'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

@@ -31,14 +31,16 @@ export function RestAlert() {
   // timers are throttled or frozen in the background.
   useEffect(() => {
     const endsAt = timer?.endsAt ?? null;
-    if (endsAt === null || !settings.timerSound || endsAt <= Date.now()) {
+    // Native has no sound without a notification, so either switch arms it.
+    const armed = settings.timerSound || settings.timerNotifications;
+    if (endsAt === null || !armed || endsAt <= Date.now()) {
       cancelRestAlarm();
       return;
     }
     scheduleRestAlarm(endsAt);
     // No unmount cleanup: a vault auto-lock unmounts this tree and must not
     // silence an alarm that is already armed.
-  }, [timer?.endsAt, settings.timerSound]);
+  }, [timer?.endsAt, settings.timerSound, settings.timerNotifications]);
 
   // One alert per deadline, whatever fires it first.
   const alertFor = useCallback(

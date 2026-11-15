@@ -217,6 +217,7 @@
     "timerVibration": "Vibration",
     "timerNotifications": "Notifications",
     "enableNotifications": "Allow notifications",
+    "exactAlarm": "Allow exact alarms",
     "weekStart": "Week starts on",
     "monday": "Monday",
     "sunday": "Sunday",

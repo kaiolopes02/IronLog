@@ -6,5 +6,11 @@ playwright-report/
 *.log
 .env
 .env.*
+# Android signing material must never be committed.
+android/keystore.properties
+*.jks
+*.keystore
 .vscode/
+# Only the repo-root IDE folder; android/.idea is tracked by the Capacitor template.
+/.idea/
 .DS_Store

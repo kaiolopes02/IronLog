@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { APP_CONFIG } from '@/core/config/app.config';
 import { decryptWithPassword, encryptWithPassword } from '@/core/crypto/keyring';
 import type { IronLogDb } from '@/core/database/db';
@@ -161,7 +164,24 @@ export async function buildCsv(db: IronLogDb, locale: Locale): Promise<string> {
   ]);
 }
 
-export function downloadFile(filename: string, content: string, type: string): void {
+export async function downloadFile(
+  filename: string,
+  content: string,
+  type: string,
+): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    // A blob: URL behind <a download> is silently dropped by the WebView, so
+    // write the file and hand it to the share sheet instead.
+    const { uri } = await Filesystem.writeFile({
+      path: filename,
+      data: content,
+      directory: Directory.Cache,
+      encoding: Encoding.UTF8,
+    });
+    // Dismissing the share sheet is not an export failure: the file is written.
+    await Share.share({ url: uri, title: filename }).catch(() => undefined);
+    return;
+  }
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

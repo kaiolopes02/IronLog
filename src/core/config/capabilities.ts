@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+
 export interface Capabilities {
   wakeLock: boolean;
   vibrate: boolean;
@@ -9,6 +11,8 @@ export interface Capabilities {
   webWorker: boolean;
   hardwareConcurrency: number;
   prefersReducedMotion: boolean;
+  /** Running inside the Capacitor Android shell, not a browser. */
+  native: boolean;
 }
 
 function hasNotification(): boolean {
@@ -35,6 +39,7 @@ export function detectCapabilities(): Capabilities {
     webWorker: typeof Worker !== 'undefined',
     hardwareConcurrency: nav?.hardwareConcurrency ?? 4,
     prefersReducedMotion: reduced,
+    native: Capacitor.isNativePlatform(),
   };
 }
 

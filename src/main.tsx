@@ -3,6 +3,7 @@ import { registerSW } from 'virtual:pwa-register';
 import '@/styles.css';
 import { App } from '@/app/App';
 import { boot } from '@/app/services';
+import { initRestAlarm } from '@/core/platform/notifier';
 
 function renderFatal(root: HTMLElement, message: string): void {
   root.textContent = '';
@@ -26,8 +27,12 @@ async function start(): Promise<void> {
   if (!root) return;
   try {
     const bootResult = await boot();
+    // Native: create the notification channel before anything can schedule, and
+    // learn whether exact alarms are allowed.
+    void initRestAlarm();
     render(<App bootResult={bootResult} />, root);
-    if (bootResult.services.capabilities.serviceWorker) {
+    // The service worker only serves stale bundles inside the native shell.
+    if (bootResult.services.capabilities.serviceWorker && !bootResult.services.capabilities.native) {
       try {
         registerSW({ immediate: true });
       } catch {

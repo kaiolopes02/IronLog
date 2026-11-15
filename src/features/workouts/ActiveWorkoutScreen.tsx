@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
 import { APP_CONFIG } from '@/core/config/app.config';
 import { useI18n } from '@/core/i18n';
-import { primeAudio } from '@/core/platform/notifier';
+import { primeAudio, vibrate } from '@/core/platform/notifier';
 import { detectPersonalRecords } from '@/domain/services/records';
 import type { Exercise, SetType, WorkoutSession, WorkoutSet } from '@/domain/entities';
 import {
@@ -179,6 +179,7 @@ function ExerciseBlock({
       return;
     }
     await completeSet(services.repos, session, set, settings);
+    if (settings.timerVibration) vibrate(40);
   };
 
   return (
