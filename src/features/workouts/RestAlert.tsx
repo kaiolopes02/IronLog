@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useCallback, useEffect, useRef } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
 import { navigate } from '@/app/router';
 import { useI18n } from '@/core/i18n';
@@ -12,6 +12,7 @@ import {
 } from '@/core/platform/notifier';
 import { isElapsed } from '@/domain/services/rest-timer';
 import { skipRest } from '@/features/workouts/session-actions';
+import { useRestTimerWorker } from '@/features/workouts/useRestTimerWorker';
 import { useLiveQuery } from '@/shared/hooks/useLiveQuery';
 import { useNow } from '@/shared/hooks/useNow';
 import { Button, Sheet } from '@/shared/components/ui';
@@ -39,21 +40,25 @@ export function RestAlert() {
     // silence an alarm that is already armed.
   }, [timer?.endsAt, settings.timerSound]);
 
+  // One alert per deadline, whatever fires it first.
+  const alertFor = useCallback(
+    (endsAt: number) => {
+      if (firedFor.current === endsAt) return;
+      firedFor.current = endsAt;
+      if (settings.timerSound && !restAlarmPlayed(endsAt)) playRestBeep(endsAt);
+      if (settings.timerVibration) vibrate();
+      if (settings.timerNotifications) notify(t('workout.restDone'), t('workout.restDoneBody'));
+    },
+    [settings.timerSound, settings.timerVibration, settings.timerNotifications, t],
+  );
+
+  // The worker beats hidden-tab timer clamping; the `done` effect covers the
+  // return to the app and browsers without workers.
+  useRestTimerWorker(timer?.endsAt ?? null, alertFor);
+
   useEffect(() => {
-    if (!done || !timer?.endsAt) return;
-    if (firedFor.current === timer.endsAt) return;
-    firedFor.current = timer.endsAt;
-    if (settings.timerSound && !restAlarmPlayed(timer.endsAt)) playRestBeep(timer.endsAt);
-    if (settings.timerVibration) vibrate();
-    if (settings.timerNotifications) notify(t('workout.restDone'), t('workout.restDoneBody'));
-  }, [
-    done,
-    timer?.endsAt,
-    settings.timerSound,
-    settings.timerVibration,
-    settings.timerNotifications,
-    t,
-  ]);
+    if (done && timer?.endsAt) alertFor(timer.endsAt);
+  }, [done, timer?.endsAt, alertFor]);
 
   if (!done || !session) return null;
 

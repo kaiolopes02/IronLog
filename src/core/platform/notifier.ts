@@ -7,10 +7,12 @@ let armed: { endsAt: number; startAt: number; nodes: OscillatorNode[] } | null =
 // auto-lock) cancels the pending nodes and must still know the alarm sounded.
 let lastArmed: { endsAt: number; startAt: number } | null = null;
 
-// iOS suspends Web Audio in the background, so there the alarm is pre-rendered
-// into a WAV and played by a media element, whose pipeline keeps running
-// without JS. 8 kHz/8-bit mono: ~0.5 MB per minute of rest.
-const IOS_SAMPLE_RATE = 8000;
+// Mobile browsers suspend Web Audio in the background, so there the alarm is
+// pre-rendered into a WAV and played by a media element, whose pipeline keeps
+// running without JS. 8 kHz/8-bit mono: ~0.5 MB per minute of rest.
+// shortcut: the track holds the audio session for the whole rest, which pauses
+// other apps' music; upgrade if Media Session can coexist instead.
+const MEDIA_SAMPLE_RATE = 8000;
 let media: HTMLAudioElement | null = null;
 let mediaUnlocked = false;
 let unlockUrl: string | null = null;
@@ -27,6 +29,11 @@ function isIOS(): boolean {
     // iPadOS 13+ in desktop mode claims to be a Mac; touch points give it away.
     (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
   );
+}
+
+/** Old Android Chrome suspends Web Audio as soon as the tab is backgrounded. */
+function needsMedia(): boolean {
+  return typeof navigator !== 'undefined' && (isIOS() || /Android/.test(navigator.userAgent));
 }
 
 function audioCtor(): AudioContextCtor | null {
@@ -134,13 +141,13 @@ function scheduleBursts(ctx: AudioContext, startAt: number): OscillatorNode[] {
 
 /** The same six bursts as 8-bit unsigned PCM, for the iOS media track. */
 function alarmPcm(): Uint8Array {
-  const frames = Math.ceil(ALARM_SECONDS * IOS_SAMPLE_RATE);
+  const frames = Math.ceil(ALARM_SECONDS * MEDIA_SAMPLE_RATE);
   const samples = new Uint8Array(frames).fill(128);
   for (const [delay, duration, frequency] of ALARM_BURSTS) {
-    const from = Math.round(delay * IOS_SAMPLE_RATE);
-    const to = Math.min(frames, Math.round((delay + duration) * IOS_SAMPLE_RATE));
+    const from = Math.round(delay * MEDIA_SAMPLE_RATE);
+    const to = Math.min(frames, Math.round((delay + duration) * MEDIA_SAMPLE_RATE));
     for (let index = from; index < to; index += 1) {
-      const local = index / IOS_SAMPLE_RATE - delay;
+      const local = index / MEDIA_SAMPLE_RATE - delay;
       const envelope = Math.max(0, Math.min(1, local / 0.008, (duration - local) / 0.03));
       const wave = Math.sin(2 * Math.PI * frequency * local) >= 0 ? 1 : -1;
       samples[index] = 128 + Math.round(wave * envelope * 127);
@@ -151,7 +158,7 @@ function alarmPcm(): Uint8Array {
 
 /** WAV of `silenceSec` of silence followed by the alarm. */
 function wavUrl(silenceSec: number): string {
-  const silence = new Uint8Array(Math.max(1, Math.round(silenceSec * IOS_SAMPLE_RATE))).fill(128);
+  const silence = new Uint8Array(Math.max(1, Math.round(silenceSec * MEDIA_SAMPLE_RATE))).fill(128);
   const alarm = alarmPcm();
   const data = new Uint8Array(silence.length + alarm.length);
   data.set(silence);
@@ -168,8 +175,8 @@ function wavUrl(silenceSec: number): string {
   header.setUint32(16, 16, true);
   header.setUint16(20, 1, true); // PCM
   header.setUint16(22, 1, true); // mono
-  header.setUint32(24, IOS_SAMPLE_RATE, true);
-  header.setUint32(28, IOS_SAMPLE_RATE, true);
+  header.setUint32(24, MEDIA_SAMPLE_RATE, true);
+  header.setUint32(28, MEDIA_SAMPLE_RATE, true);
   header.setUint16(32, 1, true);
   header.setUint16(34, 8, true);
   ascii(36, 'data');
@@ -178,7 +185,7 @@ function wavUrl(silenceSec: number): string {
   return URL.createObjectURL(new Blob([header.buffer, data], { type: 'audio/wav' }));
 }
 
-/** iOS only lets an element play after it has played once from a user gesture. */
+/** Mobile browsers only let an element play after it has played once from a gesture. */
 function mediaElement(): HTMLAudioElement | null {
   if (media) return media;
   if (typeof Audio === 'undefined') return null;
@@ -188,8 +195,8 @@ function mediaElement(): HTMLAudioElement | null {
   return element;
 }
 
-/** Retried on every gesture until iOS accepts one play(), since a blocked
- *  unlock would silence every later alarm for the session. */
+/** Retried on every gesture until the browser accepts one play(), since a
+ *  blocked unlock would silence every later alarm for the session. */
 function primeMedia(): void {
   if (mediaUnlocked || trackUrl) return; // already unlocked, or an alarm owns the element
   const element = mediaElement();
@@ -210,8 +217,7 @@ function primeMedia(): void {
 /** Must be called from a user gesture once, so mobile browsers allow audio. */
 export function primeAudio(): void {
   ensureContext();
-  // iOS only credits play() from a gesture: retry the unlock until it succeeds.
-  if (isIOS()) primeMedia();
+  if (needsMedia()) primeMedia();
 }
 
 function armMedia(endsAt: number, delay: number): boolean {
@@ -237,7 +243,7 @@ function armMedia(endsAt: number, delay: number): boolean {
 export function scheduleRestAlarm(endsAt: number): boolean {
   cancelRestAlarm();
   const delay = Math.max(0, (endsAt - Date.now()) / 1000);
-  if (isIOS()) return armMedia(endsAt, delay);
+  if (needsMedia() && armMedia(endsAt, delay)) return true;
   const ctx = ensureContext();
   if (!ctx) return false;
   const startAt = ctx.currentTime + delay;
@@ -275,10 +281,8 @@ export function cancelRestAlarm(): void {
 /** True when the alarm for this deadline was already rendered. */
 export function restAlarmPlayed(endsAt: number): boolean {
   if (beepedFor === endsAt) return true;
-  if (mediaReceipt) {
+  if (mediaReceipt?.endsAt === endsAt && media !== null) {
     return (
-      mediaReceipt.endsAt === endsAt &&
-      media !== null &&
       // Tolerance covers the media pipeline's start-up delay, without turning
       // a very short rest into an instant "played".
       media.currentTime >= Math.max(0.05, mediaReceipt.delay - 0.5)
@@ -305,9 +309,13 @@ export function playRestBeep(endsAt: number): boolean {
   }
 }
 
-export function vibrate(pattern: number | number[] = [200, 100, 200, 100, 400]): boolean {
+export function vibrate(pattern: number | number[] = [300, 150, 300]): boolean {
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return false;
-  return navigator.vibrate(pattern);
+  try {
+    return navigator.vibrate(pattern);
+  } catch {
+    return false; // old WebViews: never break the rest flow
+  }
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
@@ -325,14 +333,34 @@ export async function requestNotificationPermission(): Promise<boolean> {
 export function notify(title: string, body: string): boolean {
   if (typeof window === 'undefined' || !('Notification' in window)) return false;
   if (Notification.permission !== 'granted') return false;
+  // Muted while visible (the audio alarm covers it), audible in the background,
+  // where it is the only channel that survives on iOS.
+  const options: NotificationOptions & { vibrate: number[]; renotify: boolean } = {
+    body,
+    tag: 'ironlog-rest',
+    silent: document.visibilityState === 'visible',
+    vibrate: [300, 150, 300],
+    renotify: true,
+  };
+  // `serviceWorker.ready` never rejects — with no active registration it stays
+  // pending forever, so ask for the current registration instead and fall back.
+  const registration = navigator.serviceWorker?.getRegistration?.();
+  if (registration) {
+    void registration
+      .then((ready) => {
+        if (!ready) showDirect(title, options);
+        else return ready.showNotification(title, options);
+      })
+      .catch(() => showDirect(title, options));
+    // An attempt was made; the service-worker path settles asynchronously.
+    return true;
+  }
+  return showDirect(title, options);
+}
+
+function showDirect(title: string, options: NotificationOptions): boolean {
   try {
-    // Muted while visible (the audio alarm covers it), audible in the background,
-    // where it is the only channel that survives on iOS.
-    new Notification(title, {
-      body,
-      tag: 'ironlog-rest',
-      silent: document.visibilityState === 'visible',
-    });
+    new Notification(title, options);
     return true;
   } catch {
     return false;

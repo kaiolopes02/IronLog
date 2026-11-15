@@ -86,6 +86,15 @@ function useIOSUserAgent() {
   });
 }
 
+function useAndroidUserAgent() {
+  Object.defineProperty(navigator, 'userAgent', {
+    value:
+      'Mozilla/5.0 (Linux; Android 11; Pixel 4) AppleWebKit/537.36 (KHTML, like Gecko) ' +
+      'Chrome/95.0.4638.74 Mobile Safari/537.36',
+    configurable: true,
+  });
+}
+
 beforeEach(() => {
   vi.resetModules();
   FakeAudioContext.instances = [];
@@ -107,6 +116,7 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'AudioContext');
   Reflect.deleteProperty(window, 'Notification');
   Reflect.deleteProperty(navigator, 'userAgent');
+  Reflect.deleteProperty(navigator, 'serviceWorker');
   Reflect.deleteProperty(URL, 'createObjectURL');
   Reflect.deleteProperty(URL, 'revokeObjectURL');
   Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
@@ -209,13 +219,18 @@ describe('notifier', () => {
     expect(bursts[0].start.mock.calls[0][0]).toBeCloseTo(ctx.currentTime + 0.01, 5);
   });
 
-  it('uses the aggressive vibration fallback by default', async () => {
+  it('uses the short vibration pattern by default and never throws', async () => {
     const notifier = await loadNotifier();
     const vibrateSpy = vi.fn(() => true);
     Object.defineProperty(navigator, 'vibrate', { value: vibrateSpy, configurable: true });
 
     expect(notifier.vibrate()).toBe(true);
-    expect(vibrateSpy).toHaveBeenCalledWith([200, 100, 200, 100, 400]);
+    expect(vibrateSpy).toHaveBeenCalledWith([300, 150, 300]);
+
+    vibrateSpy.mockImplementation(() => {
+      throw new Error('unsupported');
+    });
+    expect(notifier.vibrate()).toBe(false);
 
     Reflect.deleteProperty(navigator, 'vibrate');
   });
@@ -236,6 +251,78 @@ describe('notifier', () => {
     expect(created[0].silent).toBe(false);
   });
 
+  it('shows the system notification through the service worker on Android', async () => {
+    const notifier = await loadNotifier();
+    const showNotification = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { getRegistration: async () => ({ showNotification }) },
+      configurable: true,
+    });
+    class FakeNotification {
+      static permission = 'granted';
+      constructor() {
+        throw new Error('new Notification is illegal on Android Chrome');
+      }
+    }
+    (window as unknown as { Notification: unknown }).Notification = FakeNotification;
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+
+    expect(notifier.notify('Descanso', 'Acabou')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(showNotification).toHaveBeenCalledWith(
+      'Descanso',
+      expect.objectContaining({ tag: 'ironlog-rest', silent: false, vibrate: [300, 150, 300] }),
+    );
+  });
+
+  it('falls back to a direct notification when the worker cannot show one', async () => {
+    const notifier = await loadNotifier();
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: {
+        getRegistration: async () => ({
+          showNotification: vi.fn(() => Promise.reject(new Error('no'))),
+        }),
+      },
+      configurable: true,
+    });
+    const created: NotificationOptions[] = [];
+    class FakeNotification {
+      static permission = 'granted';
+      constructor(_title: string, options: NotificationOptions) {
+        created.push(options);
+      }
+    }
+    (window as unknown as { Notification: unknown }).Notification = FakeNotification;
+
+    expect(notifier.notify('Descanso', 'Acabou')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(created).toHaveLength(1);
+  });
+
+  it('falls back to a direct notification when no service worker is active', async () => {
+    const notifier = await loadNotifier();
+    // Chrome Android leaves `serviceWorker.ready` pending forever here.
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { getRegistration: async () => undefined },
+      configurable: true,
+    });
+    const created: NotificationOptions[] = [];
+    class FakeNotification {
+      static permission = 'granted';
+      constructor(_title: string, options: NotificationOptions) {
+        created.push(options);
+      }
+    }
+    (window as unknown as { Notification: unknown }).Notification = FakeNotification;
+
+    expect(notifier.notify('Descanso', 'Acabou')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(created).toHaveLength(1);
+  });
+
   it('plays the pre-rendered track instead of Web Audio on iOS', async () => {
     useIOSUserAgent();
     const notifier = await loadNotifier();
@@ -253,6 +340,51 @@ describe('notifier', () => {
     expect(notifier.restAlarmPlayed(endsAt)).toBe(true);
   });
 
+  it('plays the pre-rendered track instead of Web Audio on Android', async () => {
+    useAndroidUserAgent();
+    const notifier = await loadNotifier();
+    const endsAt = 1_000_000 + 60_000;
+
+    expect(notifier.scheduleRestAlarm(endsAt)).toBe(true);
+
+    const element = FakeAudio.instances[0];
+    expect(element.src).toBe('blob:alarm');
+    expect(element.play).toHaveBeenCalled();
+    expect(FakeAudioContext.instances).toHaveLength(0);
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(false);
+
+    element.currentTime = 60.2;
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(true);
+  });
+
+  it('falls back to Web Audio when the media element is unavailable', async () => {
+    useAndroidUserAgent();
+    vi.stubGlobal('Audio', undefined);
+    const notifier = await loadNotifier();
+
+    expect(notifier.scheduleRestAlarm(1_000_000 + 5_000)).toBe(true);
+    expect(FakeAudioContext.instances).toHaveLength(1);
+  });
+
+  it('reads the audio clock when the media receipt belongs to an earlier rest', async () => {
+    useAndroidUserAgent();
+    const notifier = await loadNotifier();
+    notifier.scheduleRestAlarm(1_000_000 + 30_000);
+
+    // A later arm runs out of memory building its track and falls back.
+    vi.mocked(URL.createObjectURL).mockImplementation(() => {
+      throw new Error('out of memory');
+    });
+    const endsAt = 1_000_000 + 60_000;
+    notifier.scheduleRestAlarm(endsAt);
+
+    const ctx = FakeAudioContext.instances[0];
+    expect(ctx).toBeDefined();
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(false);
+    ctx.currentTime += 60.1;
+    expect(notifier.restAlarmPlayed(endsAt)).toBe(true);
+  });
+
   it('keeps the iOS play receipt after a cancel', async () => {
     useIOSUserAgent();
     const notifier = await loadNotifier();
@@ -267,7 +399,7 @@ describe('notifier', () => {
     expect(notifier.restAlarmPlayed(endsAt)).toBe(true);
   });
 
-  it('leaves the media path alone outside iOS', async () => {
+  it('leaves the media path alone on desktop', async () => {
     const notifier = await loadNotifier();
 
     notifier.scheduleRestAlarm(1_000_000 + 5_000);

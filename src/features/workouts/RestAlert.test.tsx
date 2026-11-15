@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppProvider } from '@/app/AppContext';
 import { detectCapabilities } from '@/core/config/capabilities';
@@ -30,6 +30,37 @@ vi.mock('@/core/platform/notifier', () => ({
 }));
 
 let db: IronLogDb;
+
+class FakeWorker {
+  static instances: FakeWorker[] = [];
+  messages: unknown[] = [];
+  terminated = false;
+  private listeners: Array<(event: MessageEvent) => void> = [];
+
+  constructor(readonly url: URL, _options?: WorkerOptions) {
+    FakeWorker.instances.push(this);
+  }
+
+  addEventListener(type: string, listener: EventListener): void {
+    if (type === 'message') this.listeners.push(listener as (event: MessageEvent) => void);
+  }
+
+  removeEventListener(type: string, listener: EventListener): void {
+    if (type === 'message') this.listeners = this.listeners.filter((item) => item !== listener);
+  }
+
+  postMessage(data: unknown): void {
+    this.messages.push(data);
+  }
+
+  terminate(): void {
+    this.terminated = true;
+  }
+
+  emit(data: unknown): void {
+    for (const listener of [...this.listeners]) listener({ data } as MessageEvent);
+  }
+}
 
 async function setup(endsAt: number): Promise<void> {
   db = new IronLogDb(`ironlog-rest-${Math.random().toString(36).slice(2)}`);
@@ -88,6 +119,8 @@ beforeEach(() => {
 
 afterEach(async () => {
   if (db) await db.delete();
+  vi.unstubAllGlobals();
+  FakeWorker.instances = [];
 });
 
 describe('RestAlert', () => {
@@ -158,4 +191,28 @@ describe('RestAlert', () => {
     await waitFor(() => expect(vibrate).toHaveBeenCalledTimes(1));
     expect(playRestBeep).not.toHaveBeenCalled();
   });
+
+  it('alerts from the worker before the page tick, once per deadline', async () => {
+    vi.stubGlobal('Worker', FakeWorker);
+    const endsAt = Date.now() + 300;
+    await setup(endsAt);
+    await waitFor(() => expect(scheduleRestAlarm).toHaveBeenCalledWith(endsAt));
+
+    // The crypto service spins up its own worker first; pick the timer one.
+    const worker = FakeWorker.instances.find((item) => String(item.url).includes('timer.worker'));
+    expect(worker).toBeDefined();
+    await waitFor(() => expect(worker?.messages).toEqual([{ endsAt }]));
+
+    act(() => worker!.emit({ endsAt }));
+    expect(playRestBeep).toHaveBeenCalledWith(endsAt);
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledTimes(1);
+
+    // The page tick reaches the same deadline afterwards: still one alert.
+    await screen.findByText('Descanso acabou', undefined, { timeout: 3_000 });
+    expect(playRestBeep).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
 });
+
