@@ -41,10 +41,13 @@ jobs:
           java-version: 21
 
       - name: Instalar componentes do Android SDK
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
       - name: Sincronizar Capacitor
         run: npx cap sync android
+
+      - name: Usar keystore de debug partilhado
+        run: mkdir -p ~/.android && cp android/debug.keystore ~/.android/debug.keystore
 
       - name: Compilar APK debug
         working-directory: android
@@ -56,13 +59,13 @@ jobs:
       - name: Guardar APK como artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ironlog-apk
+          name: ironlog-apk-${{ github.run_attempt }}
           path: android/app/build/outputs/apk/debug/ironlog-apk-debug.apk
           if-no-files-found: error
 
       - name: Publicar na GitHub Release
         env:
-          APK_TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || format('build-{0}', github.run_number) }}
+          APK_TAG: ${{ inputs.tag || (github.event_name == 'push' && github.ref_name) || format('build-{0}', github.run_number) }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.APK_TAG }}

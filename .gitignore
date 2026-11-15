@@ -10,6 +10,9 @@ playwright-report/
 android/keystore.properties
 *.jks
 *.keystore
+# Excepção: a chave de DEBUG é pública (password "android") e partilhada de propósito,
+# para que os APKs da CI e os builds locais tenham a mesma assinatura.
+!android/debug.keystore
 .vscode/
 # Only the repo-root IDE folder; android/.idea is tracked by the Capacitor template.
 /.idea/
