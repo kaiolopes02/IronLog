@@ -1,0 +1,3 @@
+# O wrapper do Gradle tem de ficar executável e com finais LF no checkout Linux.
+android/gradlew text eol=lf
+android/gradlew.bat text eol=crlf
