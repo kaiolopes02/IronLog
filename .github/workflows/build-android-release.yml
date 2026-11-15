@@ -50,11 +50,14 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Preparar APK para a release
+        run: mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/ironlog-apk-debug.apk
+
       - name: Guardar APK como artifact
         uses: actions/upload-artifact@v4
         with:
           name: ironlog-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/ironlog-apk-debug.apk
           if-no-files-found: error
 
       - name: Publicar na GitHub Release
@@ -66,5 +69,5 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: IronLog ${{ env.APK_TAG }}
           generate_release_notes: true
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: android/app/build/outputs/apk/debug/ironlog-apk-debug.apk
           fail_on_unmatched_files: true
