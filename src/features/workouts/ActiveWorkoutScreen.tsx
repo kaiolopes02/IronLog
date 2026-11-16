@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'preact/hooks';
 import { useApp } from '@/app/AppContext';
 import { APP_CONFIG } from '@/core/config/app.config';
 import { useI18n } from '@/core/i18n';
-import { primeAudio, vibrate } from '@/core/platform/notifier';
+import { vibrate } from '@/core/platform/notifier';
 import { detectPersonalRecords } from '@/domain/services/records';
 import type { Exercise, SetType, WorkoutSession, WorkoutSet } from '@/domain/entities';
 import {
@@ -18,6 +18,7 @@ import {
   reopenSet,
 } from '@/features/workouts/session-actions';
 import { ExercisePicker } from '@/features/workouts/ExercisePicker';
+import { ExactAlarmPrompt } from '@/features/workouts/ExactAlarmPrompt';
 import { PlateSheet } from '@/features/workouts/PlateSheet';
 import { RestTimerBar } from '@/features/workouts/RestTimerBar';
 import { useLiveQuery } from '@/shared/hooks/useLiveQuery';
@@ -164,7 +165,6 @@ function ExerciseBlock({
   const add = async () => {
     if (adding.current) return;
     adding.current = true;
-    primeAudio();
     try {
       await createSet(services.repos, session, exercise, settings);
     } finally {
@@ -173,7 +173,6 @@ function ExerciseBlock({
   };
 
   const toggle = async (set: WorkoutSet) => {
-    primeAudio();
     if (set.completed) {
       await reopenSet(services.repos, set);
       return;
@@ -376,6 +375,8 @@ export function ActiveWorkoutScreen() {
           await createSet(services.repos, next, exercise, settings);
         }}
       />
+
+      <ExactAlarmPrompt />
     </div>
   );
 }

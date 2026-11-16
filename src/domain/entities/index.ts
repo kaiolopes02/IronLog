@@ -173,7 +173,6 @@ export interface AppSettings {
   plateStock: PlateStockItem[];
   barWeightKg: number;
   securityEnabled: boolean;
-  timerSound: boolean;
   timerVibration: boolean;
   timerNotifications: boolean;
   formulaId: string;

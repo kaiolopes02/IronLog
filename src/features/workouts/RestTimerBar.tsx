@@ -23,7 +23,7 @@ export function RestTimerBar({ session }: { session: WorkoutSession }) {
 
   return (
     <div
-      class={`sticky top-0 z-20 border-b px-4 py-2 ${
+      class={`sticky safe-sticky z-20 border-b px-4 py-2 ${
         done ? 'animate-pulse border-primary bg-primary/15' : 'border-line bg-surface'
       }`}
       role="status"

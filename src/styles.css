@@ -54,6 +54,16 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+  /* Capacitor's SystemBars injects the custom property for WebViews that do not
+     honour env(); both paths are 0 when the native view already pads. */
+  .safe-top {
+    padding-top: env(safe-area-inset-top, var(--safe-area-inset-top, 0px));
+  }
+
+  .safe-sticky {
+    top: env(safe-area-inset-top, var(--safe-area-inset-top, 0px));
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

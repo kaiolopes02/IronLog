@@ -12,7 +12,7 @@ e o Capacitor copia os assets.
 
 | Tema | PWA (navegador) | App Android |
 | --- | --- | --- |
-| Alarme de descanso | Web Audio + trilho WAV; o browser pode suspender | `AlarmManager` do sistema, acorda o telemóvel com o ecrã bloqueado |
+| Alarme de descanso | Notificação do browser, se autorizada (sem som próprio) | Notificação local nativa **silenciosa** via `AlarmManager`, acorda o telemóvel com o ecrã bloqueado |
 | Vibração | `navigator.vibrate` | plugin Haptics (`VIBRATE`) |
 | Ecrã sempre ligado no treino | Wake Lock API | plugin Keep Awake |
 | Exportar backup | download do `.json`/`.csv` | grava na cache e abre o menu de partilha |
@@ -105,14 +105,14 @@ partilhar com quem aceite instalar de fonte desconhecida, não para a Play Store
 - **Notificações** (Android 13+): sem ela o alarme não soa em segundo plano.
   O app pede em Configurações → Notificações.
 - **Alarmes exatos** (Android 12+): sem ela o sistema pode atrasar o alarme.
-  Configurações → "Permitir alarmes exatos" abre o ecrã do sistema. O app
-  continua a funcionar sem isto, só que com o alarme inexato.
+  Ao abrir um treino o app mostra o pedido, e Configurações → "Permitir
+  alarmes exatos" faz o mesmo. O app continua a funcionar sem isto, só que
+  com o alarme inexato.
 - **Vibração** e **Wake Lock**: concedidas na instalação.
 
-Canal de notificação `rest-v1` (alta importância, som próprio
-`res/raw/rest_alarm.wav`, vibração). O som e a importância do canal são
-imutáveis depois de criado; para mudar, use um id novo (`rest-v2`) e mude
-`REST_CHANNEL_ID` em `src/core/platform/notifier.ts`.
+Canal de notificação `rest-v2` (alta importância, sem som, vibração). O som e
+a importância do canal são imutáveis depois de criado; para mudar, use um id
+novo (`rest-v3`) e mude `REST_CHANNEL_ID` em `src/core/platform/notifier.ts`.
 
 ## Publicar
 

@@ -188,16 +188,8 @@ export function SettingsScreen() {
           ))}
         </Section>
 
-        <Section title={t('settings.timerSound')}>
+        <Section title={t('settings.rest')}>
           <Card class="space-y-3">
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-sm text-ink">{t('settings.timerSound')}</span>
-              <Toggle
-                label={t('settings.timerSound')}
-                checked={settings.timerSound}
-                onChange={(timerSound) => void updateSettings({ timerSound })}
-              />
-            </div>
             <div class="flex items-center justify-between gap-3">
               <span class="text-sm text-ink">{t('settings.timerVibration')}</span>
               <Toggle
@@ -206,17 +198,19 @@ export function SettingsScreen() {
                 onChange={(timerVibration) => void updateSettings({ timerVibration })}
               />
             </div>
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-sm text-ink">{t('settings.timerNotifications')}</span>
-              <Toggle
-                label={t('settings.timerNotifications')}
-                checked={settings.timerNotifications}
-                onChange={(checked) => {
-                  if (checked) void enableNotifications();
-                  else void updateSettings({ timerNotifications: false });
-                }}
-              />
-            </div>
+            {capabilities.native ? null : (
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-sm text-ink">{t('settings.timerNotifications')}</span>
+                <Toggle
+                  label={t('settings.timerNotifications')}
+                  checked={settings.timerNotifications}
+                  onChange={(checked) => {
+                    if (checked) void enableNotifications();
+                    else void updateSettings({ timerNotifications: false });
+                  }}
+                />
+              </div>
+            )}
             {capabilities.notifications ? null : (
               <p class="text-xs text-muted">{t('settings.notificationsUnsupported')}</p>
             )}

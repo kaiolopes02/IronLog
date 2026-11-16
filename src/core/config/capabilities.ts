@@ -7,7 +7,6 @@ export interface Capabilities {
   serviceWorker: boolean;
   storagePersist: boolean;
   webAuthn: boolean;
-  webAudio: boolean;
   webWorker: boolean;
   hardwareConcurrency: number;
   prefersReducedMotion: boolean;
@@ -35,7 +34,6 @@ export function detectCapabilities(): Capabilities {
     storagePersist:
       !!nav && typeof nav.storage !== 'undefined' && typeof nav.storage.persist === 'function',
     webAuthn: typeof win !== 'undefined' && 'PublicKeyCredential' in win,
-    webAudio: typeof win !== 'undefined' && 'AudioContext' in win,
     webWorker: typeof Worker !== 'undefined',
     hardwareConcurrency: nav?.hardwareConcurrency ?? 4,
     prefersReducedMotion: reduced,

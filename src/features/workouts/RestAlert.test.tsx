@@ -9,8 +9,6 @@ import { setLocale } from '@/core/i18n';
 import {
   cancelRestAlarm,
   notify,
-  playRestBeep,
-  restAlarmPlayed,
   scheduleRestAlarm,
   vibrate,
 } from '@/core/platform/notifier';
@@ -20,12 +18,9 @@ import type { AppSettings, WorkoutSession } from '@/domain/entities';
 
 vi.mock('@/core/platform/notifier', () => ({
   notify: vi.fn(() => true),
-  playRestBeep: vi.fn(() => true),
   vibrate: vi.fn(() => true),
-  primeAudio: vi.fn(),
   scheduleRestAlarm: vi.fn(() => true),
   cancelRestAlarm: vi.fn(),
-  restAlarmPlayed: vi.fn(() => false),
   requestNotificationPermission: vi.fn(async () => false),
 }));
 
@@ -68,7 +63,6 @@ async function setup(endsAt: number): Promise<void> {
   const repos = createRepositories(db);
   const settings: AppSettings = await repos.settings.patch({
     locale: 'pt-BR',
-    timerSound: true,
     timerVibration: true,
     timerNotifications: true,
   });
@@ -113,7 +107,6 @@ async function setup(endsAt: number): Promise<void> {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(restAlarmPlayed).mockReturnValue(false);
   vi.mocked(scheduleRestAlarm).mockReturnValue(true);
 });
 
@@ -147,19 +140,17 @@ describe('RestAlert', () => {
     await setup(Date.now() - 1_000);
     await screen.findByText('Descanso acabou');
     expect(scheduleRestAlarm).not.toHaveBeenCalled(); // already expired: no arming
-    await waitFor(() => expect(playRestBeep).toHaveBeenCalledTimes(1));
-    expect(vibrate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(vibrate).toHaveBeenCalledTimes(1));
     expect(notify).toHaveBeenCalledTimes(1);
 
     fireEvent(document, new Event('visibilitychange'));
     fireEvent(window, new Event('focus'));
 
-    expect(playRestBeep).toHaveBeenCalledTimes(1);
     expect(vibrate).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledTimes(1);
   });
 
-  it('arms the alarm on the audio clock and re-arms when the timer moves', async () => {
+  it('arms the OS alarm and re-arms when the timer moves', async () => {
     const endsAt = Date.now() + 60_000;
     await setup(endsAt);
     await waitFor(() => expect(scheduleRestAlarm).toHaveBeenCalledWith(endsAt));
@@ -184,14 +175,6 @@ describe('RestAlert', () => {
     await waitFor(() => expect(cancelRestAlarm).toHaveBeenCalled());
   });
 
-  it('does not play a second alarm when the audio thread already sounded it', async () => {
-    vi.mocked(restAlarmPlayed).mockReturnValue(true);
-    await setup(Date.now() - 1_000);
-    await screen.findByText('Descanso acabou');
-    await waitFor(() => expect(vibrate).toHaveBeenCalledTimes(1));
-    expect(playRestBeep).not.toHaveBeenCalled();
-  });
-
   it('alerts from the worker before the page tick, once per deadline', async () => {
     vi.stubGlobal('Worker', FakeWorker);
     const endsAt = Date.now() + 300;
@@ -204,13 +187,11 @@ describe('RestAlert', () => {
     await waitFor(() => expect(worker?.messages).toEqual([{ endsAt }]));
 
     act(() => worker!.emit({ endsAt }));
-    expect(playRestBeep).toHaveBeenCalledWith(endsAt);
     expect(vibrate).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledTimes(1);
 
     // The page tick reaches the same deadline afterwards: still one alert.
     await screen.findByText('Descanso acabou', undefined, { timeout: 3_000 });
-    expect(playRestBeep).toHaveBeenCalledTimes(1);
     expect(vibrate).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledTimes(1);
   });

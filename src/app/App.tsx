@@ -74,7 +74,7 @@ export function App({ bootResult }: { bootResult: BootResult }) {
         setUnlocked,
       }}
     >
-      <div class="mx-auto min-h-screen w-full max-w-xl bg-bg">
+      <div class="safe-top mx-auto min-h-screen w-full max-w-xl bg-bg">
         {needsConsent ? (
           <ConsentScreen />
         ) : locked ? (

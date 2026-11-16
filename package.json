@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "android:sync": "npm run build && cap sync android",
+    "android:sync": "npm run icons && npm run build && cap sync android",
     "icons": "node scripts/gen-icons.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "verify": "npm run lint && npm run test && npm run build && npm run check:bundle"
@@ -25,6 +25,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
     "dexie": "^4.4.7",
     "preact": "^11.2.0",
     "uplot": "^1.6.32"

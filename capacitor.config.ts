@@ -13,6 +13,18 @@ const config: CapacitorConfig = {
     LocalNotifications: {
       iconColor: '#F97316',
     },
+    // The native drawables carry the logo; this keeps the window black between
+    // them and the first WebView paint.
+    SplashScreen: {
+      backgroundColor: '#000000',
+    },
+    // Dark bars match the OLED theme, and the hint keeps the first paint from
+    // shifting while the viewport meta tag is being read.
+    SystemBars: {
+      style: 'DARK',
+      insetsHandling: 'css',
+      initialViewportFitValueHint: 'cover',
+    },
   },
 };
 

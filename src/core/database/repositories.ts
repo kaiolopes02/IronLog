@@ -44,7 +44,6 @@ export function defaultSettings(): AppSettings {
     plateStock: seedPlates.defaultStock.map((item) => ({ ...item })),
     barWeightKg: seedPlates.defaultBarWeightKg,
     securityEnabled: false,
-    timerSound: true,
     timerVibration: true,
     timerNotifications: false,
     formulaId: APP_CONFIG.defaults.formulaId,
