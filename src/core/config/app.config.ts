@@ -60,8 +60,4 @@ export const APP_CONFIG = {
     chartAnimations: false,
     lowCoreThreshold: 4,
   },
-  privacy: {
-    csp:
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'none'; object-src 'none'",
-  },
 } as const;
