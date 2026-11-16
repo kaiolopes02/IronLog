@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { APP_CONFIG } from '@/core/config/app.config';
+import { deriveKek, encryptJson, randomBytes } from '@/core/crypto/keyring';
 import { IronLogDb } from '@/core/database/db';
 import { seedDatabase } from '@/core/database/repositories';
+import { base64ToBytes, bytesToBase64 } from '@/shared/utils/base64';
 import {
   buildBackup,
   parseBackup,
@@ -52,6 +54,26 @@ describe('backup encryption', () => {
       payload: { iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' },
     });
     await expect(parseBackup(text, PASSWORD)).rejects.toThrow('invalid backup');
+  });
+  it('rejects an encrypted backup from a newer version', async () => {
+    const kdf = { iterations: 1, salt: bytesToBase64(randomBytes(16)) };
+    const key = await deriveKek(PASSWORD, base64ToBytes(kdf.salt), kdf.iterations);
+    const payload = await encryptJson(key, {
+      app: 'ironlog',
+      version: APP_CONFIG.exportVersion + 1,
+      exportedAt: '',
+      data: {},
+    });
+    const text = JSON.stringify({
+      app: 'ironlog',
+      encrypted: true,
+      version: APP_CONFIG.exportVersion,
+      exportedAt: '',
+      kdf,
+      payload,
+    });
+
+    await expect(parseBackup(text, PASSWORD)).rejects.toThrow('newer version');
   });
 });
 

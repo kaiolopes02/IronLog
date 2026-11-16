@@ -83,6 +83,29 @@ function isBackupFile(value: unknown): value is BackupFile {
   );
 }
 
+function isEnvelope(value: unknown): boolean {
+  return isRecord(value) && typeof value.iv === 'string' && typeof value.data === 'string';
+}
+
+/**
+ * A restored security row is the only row that can brick the app: boot sends
+ * any non-null record straight to the unlock screen, so a malformed one makes
+ * every PIN fail and `iterations` becomes an unauthenticated PBKDF2 cost.
+ */
+function isSecurityRecordRow(row: unknown): boolean {
+  if (!isRecord(row) || row.key !== 'main' || !isRecord(row.record)) return false;
+  const { version, kdf, wrappedDek } = row.record;
+  if (version !== 1 || !isRecord(kdf) || !isEnvelope(wrappedDek)) return false;
+  const { iterations, salt } = kdf;
+  return (
+    typeof iterations === 'number' &&
+    Number.isInteger(iterations) &&
+    iterations > 0 &&
+    iterations <= APP_CONFIG.security.kdf.maxIterations &&
+    typeof salt === 'string'
+  );
+}
+
 export async function parseBackup(text: string, password?: string): Promise<BackupFile> {
   let parsed: unknown;
   try {
@@ -94,6 +117,7 @@ export async function parseBackup(text: string, password?: string): Promise<Back
     if (!password) throw new Error('password required');
     const decrypted = await decryptWithPassword<unknown>(parsed.payload, password, parsed.kdf);
     if (!isBackupFile(decrypted)) throw new Error('invalid backup');
+    if (decrypted.version > APP_CONFIG.exportVersion) throw new Error('backup from a newer version');
     return decrypted;
   }
   if (!isBackupFile(parsed)) throw new Error('invalid backup');
@@ -111,6 +135,9 @@ export async function restoreBackup(db: IronLogDb, backup: BackupFile): Promise<
     if (rows !== undefined && (!Array.isArray(rows) || !rows.every(hasPrimaryKey))) {
       throw new Error('invalid backup');
     }
+  }
+  if (!(backup.data.security ?? []).every(isSecurityRecordRow)) {
+    throw new Error('invalid backup');
   }
   await db.transaction('rw', db.tables, async () => {
     for (const table of db.tables) {
