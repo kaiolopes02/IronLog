@@ -106,7 +106,7 @@ describe('backup import fuzzing', () => {
         expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
       }
       expect(parsedCount).toBeGreaterThan(50);
-      expect(restoreRejects).toBeGreaterThan(0);
+      expect(restoreRejects).toBeGreaterThan(50);
     },
   );
 

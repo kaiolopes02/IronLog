@@ -87,6 +87,38 @@ function isEnvelope(value: unknown): boolean {
   return isRecord(value) && typeof value.iv === 'string' && typeof value.data === 'string';
 }
 
+const isStr = (value: unknown): value is string => typeof value === 'string';
+const isNum = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+const isBool = (value: unknown): value is boolean => typeof value === 'boolean';
+const isStrList = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(isStr);
+const isNullableStr = (value: unknown): boolean => value === null || isStr(value);
+const isNullableNum = (value: unknown): boolean => value === null || isNum(value);
+const isOptional = (check: (value: unknown) => boolean) => (value: unknown) =>
+  value === undefined || check(value);
+
+function isSettings(value: unknown): boolean {
+  if (!isRecord(value) || !isRecord(value.restByMuscle)) return false;
+  return (
+    isNullableStr(value.consentVersion) &&
+    (value.locale === 'pt-BR' || value.locale === 'en') &&
+    (value.unit === 'kg' || value.unit === 'lb') &&
+    (value.weekStartsOn === 0 || value.weekStartsOn === 1) &&
+    isNum(value.restDefaultSec) &&
+    Object.values(value.restByMuscle).every(isNum) &&
+    Array.isArray(value.plateStock) &&
+    value.plateStock.every(
+      (item) => isRecord(item) && isStr(item.id) && isNum(item.weightKg) && isNum(item.pairs),
+    ) &&
+    isNum(value.barWeightKg) &&
+    isBool(value.securityEnabled) &&
+    isBool(value.timerVibration) &&
+    isBool(value.timerNotifications) &&
+    isStr(value.formulaId)
+  );
+}
+
 /**
  * A restored security row is the only row that can brick the app: boot sends
  * any non-null record straight to the unlock screen, so a malformed one makes
@@ -105,6 +137,104 @@ function isSecurityRecordRow(row: unknown): boolean {
     typeof salt === 'string'
   );
 }
+
+/**
+ * One validator per table. Restore clears everything first, so a row that
+ * cannot be rendered must be rejected before the transaction. Adding or
+ * removing an entity field means bumping `exportVersion` and this map.
+ */
+const ROW_CHECKS: Record<string, (row: unknown) => boolean> = {
+  meta: (row) => isRecord(row) && isStr(row.key) && isStr(row.value),
+  settings: (row) => isRecord(row) && row.key === 'app' && isSettings(row.value),
+  exercises: (row) =>
+    isRecord(row) &&
+    isStr(row.id) &&
+    isStr(row.nameKey) &&
+    isOptional(isStr)(row.name) &&
+    isStr(row.muscleGroupId) &&
+    isStrList(row.secondaryMuscleIds) &&
+    isStr(row.equipmentId) &&
+    isStr(row.movementPatternId) &&
+    isNum(row.defaultRestSec) &&
+    isNum(row.incrementKg) &&
+    isBool(row.isCustom) &&
+    isOptional(isBool)(row.archived),
+  muscleGroups: (row) =>
+    isRecord(row) &&
+    isStr(row.id) &&
+    isStr(row.nameKey) &&
+    isNum(row.sort) &&
+    isNum(row.defaultRestSec),
+  equipment: (row) => isRecord(row) && isStr(row.id) && isStr(row.nameKey),
+  movementPatterns: (row) => isRecord(row) && isStr(row.id) && isStr(row.nameKey),
+  setTypes: (row) =>
+    isRecord(row) &&
+    isStr(row.id) &&
+    isStr(row.nameKey) &&
+    isBool(row.isWarmup) &&
+    isBool(row.countsForVolume) &&
+    isBool(row.countsForPR),
+  splits: (row) =>
+    isRecord(row) && isStr(row.id) && isStr(row.nameKey) && isStrList(row.dayNameKeys) && isNum(row.dayCount),
+  metricTypes: (row) => isRecord(row) && isStr(row.id) && isStr(row.nameKey) && isStr(row.unit),
+  routines: (row) =>
+    isRecord(row) &&
+    isStr(row.id) &&
+    isStr(row.name) &&
+    isStr(row.splitId) &&
+    Array.isArray(row.days) &&
+    row.days.every(
+      (day) =>
+        isRecord(day) &&
+        isStr(day.id) &&
+        isStr(day.name) &&
+        isOptional(isStr)(day.nameKey) &&
+        isStrList(day.exerciseIds),
+    ) &&
+    isNum(row.createdAt) &&
+    isNum(row.updatedAt),
+  sessions: (row) =>
+    isRecord(row) &&
+    isStr(row.id) &&
+    isNullableStr(row.routineId) &&
+    isNullableStr(row.dayId) &&
+    isStr(row.name) &&
+    isStrList(row.exerciseIds) &&
+    isNum(row.startedAt) &&
+    isNullableNum(row.finishedAt) &&
+    (row.status === 'active' || row.status === 'completed' || row.status === 'abandoned') &&
+    (row.timer === null ||
+      (isRecord(row.timer) &&
+        isNum(row.timer.durationSec) &&
+        isNullableNum(row.timer.endsAt) &&
+        isNullableStr(row.timer.exerciseId))) &&
+    isNum(row.updatedAt) &&
+    isNullableStr(row.noteRef),
+  sets: (row) =>
+    isRecord(row) &&
+    isStr(row.id) &&
+    isStr(row.sessionId) &&
+    isStr(row.exerciseId) &&
+    isNum(row.order) &&
+    isStr(row.setTypeId) &&
+    isNum(row.weight) &&
+    (row.unit === 'kg' || row.unit === 'lb') &&
+    isNum(row.reps) &&
+    isNullableNum(row.rpe) &&
+    isNullableNum(row.rir) &&
+    isBool(row.completed) &&
+    isNum(row.completedAt),
+  bodyMetrics: (row) =>
+    isRecord(row) &&
+    isStr(row.id) &&
+    isStr(row.typeId) &&
+    isNum(row.value) &&
+    isNum(row.recordedAt) &&
+    isNullableStr(row.noteRef),
+  vault: (row) =>
+    isRecord(row) && isStr(row.id) && isStr(row.target) && isNum(row.updatedAt) && isEnvelope(row.payload),
+  security: isSecurityRecordRow,
+};
 
 export async function parseBackup(text: string, password?: string): Promise<BackupFile> {
   let parsed: unknown;
@@ -132,12 +262,9 @@ function hasPrimaryKey(value: unknown): boolean {
 export async function restoreBackup(db: IronLogDb, backup: BackupFile): Promise<void> {
   for (const table of db.tables) {
     const rows = backup.data[table.name];
-    if (rows !== undefined && (!Array.isArray(rows) || !rows.every(hasPrimaryKey))) {
-      throw new Error('invalid backup');
-    }
-  }
-  if (!(backup.data.security ?? []).every(isSecurityRecordRow)) {
-    throw new Error('invalid backup');
+    if (rows === undefined) continue;
+    const check = ROW_CHECKS[table.name] ?? hasPrimaryKey;
+    if (!Array.isArray(rows) || !rows.every(check)) throw new Error('invalid backup');
   }
   await db.transaction('rw', db.tables, async () => {
     for (const table of db.tables) {
